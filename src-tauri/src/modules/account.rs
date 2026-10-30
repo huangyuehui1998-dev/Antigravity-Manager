@@ -1478,8 +1478,15 @@ fn rebuild_index_from_accounts_in_dir(data_dir: &PathBuf) -> Result<AccountIndex
 
 /// Load account from a specific path with self-healing support for trailing characters/corrupted suffixes
 fn load_account_at_path(account_path: &PathBuf) -> Result<Account, String> {
-    let content = fs::read_to_string(account_path)
+    let raw_content = fs::read_to_string(account_path)
         .map_err(|e| format!("failed_to_read_account_data: {}", e))?;
+
+    let content = if raw_content.starts_with("ag_enc_") || raw_content.starts_with("ag_enc_v2_") {
+        crate::utils::crypto::decrypt_string(&raw_content)
+            .map_err(|e| format!("failed_to_decrypt_account_data: {}", e))?
+    } else {
+        raw_content
+    };
 
     let mut account = match serde_json::from_str::<Account>(&content) {
         Ok(account) => account,
@@ -1611,10 +1618,14 @@ fn save_account_at_path(account_path: &PathBuf, account: &Account) -> Result<(),
     let _lock = get_account_lock(&account.id);
     let _guard = _lock.lock().unwrap();
 
-    let content = serde_json::to_string_pretty(account)
+    let json_content = serde_json::to_string_pretty(account)
         .map_err(|e| format!("failed_to_serialize_account_data: {}", e))?;
 
-    crate::utils::fs::write_atomic(account_path, content.as_bytes())
+    // 本地硬件加密存储 (AES-GCM-256 + 机器唯一标识指纹)
+    let cipher_content = crate::utils::crypto::encrypt_string(&json_content)
+        .map_err(|e| format!("failed_to_encrypt_account_data: {}", e))?;
+
+    crate::utils::fs::write_atomic(account_path, cipher_content.as_bytes())
         .map_err(|e| format!("failed_to_save_account_file: {}", e))
 }
 

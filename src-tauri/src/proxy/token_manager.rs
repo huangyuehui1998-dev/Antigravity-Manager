@@ -1930,7 +1930,10 @@ impl TokenManager {
             account_json["protected_models"] = serde_json::Value::Array(Vec::new());
         }
 
-        let protected_models = account_json["protected_models"].as_array_mut().unwrap();
+        let protected_models = match account_json.get_mut("protected_models").and_then(|v| v.as_array_mut()) {
+            Some(arr) => arr,
+            None => return Ok(()),
+        };
 
         // 2. 检查是否已存在
         if !protected_models
@@ -1957,7 +1960,10 @@ impl TokenManager {
                 {
                     latest["protected_models"] = serde_json::Value::Array(Vec::new());
                 }
-                let protected_models = latest["protected_models"].as_array_mut().unwrap();
+                let protected_models = match latest.get_mut("protected_models").and_then(|v| v.as_array_mut()) {
+                    Some(arr) => arr,
+                    None => return,
+                };
                 if !protected_models
                     .iter()
                     .any(|model| model.as_str() == Some(&model_name_owned))
@@ -3121,7 +3127,7 @@ impl TokenManager {
                 && session_id.is_some()
                 && scheduling.mode != SchedulingMode::PerformanceFirst
             {
-                let sid = session_id.unwrap();
+                if let Some(sid) = session_id {
 
                 // 1. 检查会话是否已绑定账号
                 if let Some(bound_id) = self.session_accounts.get(sid).map(|v| v.clone()) {

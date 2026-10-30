@@ -710,6 +710,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            // Analytics & Financial commands
+            commands::get_financial_summary,
+            commands::get_financial_chart_data,
+            commands::get_financial_usage_details,
+            commands::refresh_financial_analytics,
             // Account management commands
             commands::list_accounts,
             commands::add_account,

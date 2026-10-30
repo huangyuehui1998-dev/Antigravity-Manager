@@ -6,6 +6,8 @@ use tauri_plugin_opener::OpenerExt;
 
 // 导出 proxy 命令
 pub mod proxy;
+pub mod analytics;
+pub use analytics::*;
 // 导出 autostart 命令
 pub mod autostart;
 // 导出 cloudflared 命令

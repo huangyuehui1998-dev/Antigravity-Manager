@@ -7,10 +7,10 @@ import Settings from './pages/Settings';
 import ApiProxy from './pages/ApiProxy';
 import Monitor from './pages/Monitor';
 import TokenStats from './pages/TokenStats';
+import FinancialDashboard from './pages/FinancialDashboard';
 import Security from './pages/Security';
 import ThemeManager from './components/common/ThemeManager';
 import UserToken from './pages/UserToken';
-import { ApiKeyFun } from './pages/ApiKeyFun';
 import { UpdateNotification } from './components/UpdateNotification';
 import SuggestionDeleteThinkingModal from './components/common/SuggestionDeleteThinkingModal';
 import DebugConsole from './components/debug/DebugConsole';
@@ -53,6 +53,10 @@ const router = createBrowserRouter([
         element: <Monitor />,
       },
       {
+        path: 'financial-dashboard',
+        element: <FinancialDashboard />,
+      },
+      {
         path: 'token-stats',
         element: <TokenStats />,
       },
@@ -62,7 +66,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'apikey-fun',
-        element: <ApiKeyFun />,
+        element: <Navigate to="/financial-dashboard" replace />,
       },
       {
         path: 'security',
