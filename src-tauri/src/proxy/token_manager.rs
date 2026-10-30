@@ -1932,7 +1932,7 @@ impl TokenManager {
 
         let protected_models = match account_json.get_mut("protected_models").and_then(|v| v.as_array_mut()) {
             Some(arr) => arr,
-            None => return Ok(()),
+            None => return Ok(false),
         };
 
         // 2. 检查是否已存在
@@ -3127,7 +3127,7 @@ impl TokenManager {
                 && session_id.is_some()
                 && scheduling.mode != SchedulingMode::PerformanceFirst
             {
-                if let Some(sid) = session_id {
+                let sid = session_id.unwrap();
 
                 // 1. 检查会话是否已绑定账号
                 if let Some(bound_id) = self.session_accounts.get(sid).map(|v| v.clone()) {

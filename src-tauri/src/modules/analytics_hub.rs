@@ -1,6 +1,7 @@
 // src-tauri/src/modules/analytics_hub.rs
 // 工业级全电脑财务数据湖与零锁增量同步引擎 (V5.0 实战定稿版)
 
+use chrono::Datelike;
 use rusqlite::{params, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
