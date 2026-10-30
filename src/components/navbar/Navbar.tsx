@@ -1,33 +1,25 @@
-import { LayoutDashboard, Users, Network, Activity, BarChart3, Settings, Lock, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, Network, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/useConfigStore';
-import { isTauri, isLinux } from '../../utils/env';
+import { isLinux } from '../../utils/env';
 import { NavLogo } from './NavLogo';
 import { NavMenu } from './NavMenu';
 import { NavSettings } from './NavSettings';
 import type { NavItem } from './constants';
 
 /**
- * Navbar 主组件
- * 
- * 职责: 只负责布局 and 状态管理,不处理响应式细节
- * 响应式逻辑由各个子组件独立处理
+ * Navbar 主组件 - 4 大核心黄金入口
  */
 function Navbar() {
     const { t } = useTranslation();
     const { config, updateLanguage, updateTheme } = useConfigStore();
 
-    // 创建导航项(包含翻译后的标签)
+    // 4 大黄金功能域收敛
     const navItems: NavItem[] = [
-        { path: '/', label: t('nav.dashboard'), icon: LayoutDashboard, priority: 'high' },
-        { path: '/accounts', label: t('nav.accounts'), icon: Users, priority: 'high' },
-        { path: '/api-proxy', label: t('nav.proxy'), icon: Network, priority: 'high' },
-        { path: '/financial-dashboard', label: t('nav.financial', '财务资产看板'), icon: Wallet, priority: 'high' },
-        { path: '/monitor', label: t('nav.call_records'), icon: Activity, priority: 'medium' },
-        { path: '/token-stats', label: t('nav.token_stats', 'Token 统计'), icon: BarChart3, priority: 'low' },
-        { path: '/user-token', label: t('nav.user_token', 'User Tokens'), icon: Users, priority: 'low' },
-        { path: '/security', label: t('nav.security'), icon: Lock, priority: 'low' },
-        { path: '/settings', label: t('nav.settings'), icon: Settings, priority: 'high' },
+        { path: '/', label: t('nav.dashboard', '控制台'), icon: LayoutDashboard, priority: 'high' },
+        { path: '/accounts', label: t('nav.accounts', '账号矩阵'), icon: Users, priority: 'high' },
+        { path: '/analytics', label: t('nav.analytics', '统一分析中心'), icon: BarChart3, priority: 'high' },
+        { path: '/api-proxy', label: t('nav.proxy', '本地网关中枢'), icon: Network, priority: 'high' },
     ];
 
     // 主题切换逻辑(带 View Transition 动画)
@@ -69,12 +61,10 @@ function Navbar() {
                 );
             });
         } else {
-            // Fallback: direct switch (Linux or browsers without View Transition)
             await updateTheme(newTheme);
         }
     };
 
-    // 语言切换逻辑 (即时乐观更新 + 串行尾随持久化)
     const handleLanguageChange = (langCode: string) => {
         updateLanguage(langCode).catch(err => {
             console.error('Failed to update language:', err);
@@ -83,32 +73,22 @@ function Navbar() {
 
     return (
         <nav
-            style={{ position: 'sticky', top: 0, zIndex: 50 }}
-            className="pt-9 transition-all duration-200 bg-[#FAFBFC] dark:bg-base-300"
+            style={{ position: 'sticky', top: 0, zIndex: 40 }}
+            className="transition-all duration-200 bg-[#FAFBFC] dark:bg-[#0B0F17] border-b border-black/[0.04] dark:border-white/[0.06]"
         >
-            {/* 窗口拖拽区域 - Tauri 专用 */}
-            {isTauri() && (
-                <div
-                    className="absolute top-9 left-0 right-0 h-16"
-                    style={{ zIndex: 5, backgroundColor: 'rgba(0,0,0,0.001)' }}
-                    data-tauri-drag-region
-                />
-            )}
-
-            <div className="max-w-7xl mx-auto px-8 relative" style={{ zIndex: 10 }}>
-                {/* Flexbox 布局 - 子组件自己处理响应式 */}
-                <div className="flex items-center h-16 gap-4">
-                    {/* Logo - 使用父容器宽度做响应式 */}
-                    <div className="@container/logo basis-[200px] shrink min-w-0">
+            <div className="max-w-7xl mx-auto px-6 relative" style={{ zIndex: 10 }}>
+                <div className="flex items-center h-14 gap-4">
+                    {/* Logo */}
+                    <div className="@container/logo basis-[180px] shrink min-w-0">
                         <NavLogo />
                     </div>
 
-                    {/* 导航菜单 - 自己处理响应式 */}
+                    {/* 4 大核心导航菜单 */}
                     <div className="flex-1 flex justify-center">
                         <NavMenu navItems={navItems} />
                     </div>
 
-                    {/* 设置按钮 - 自己处理响应式 */}
+                    {/* 设置按钮 */}
                     <NavSettings
                         theme={(config?.theme as 'light' | 'dark') || 'light'}
                         currentLanguage={config?.language || 'en'}

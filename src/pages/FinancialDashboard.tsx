@@ -4,6 +4,7 @@ import { DollarSign, TrendingUp, Sparkles, RefreshCw, Layers, Clock, ArrowUpRigh
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from '@tauri-apps/api/core';
+import { useChartTheme } from '../hooks/useChartTheme';
 
 interface FinancialSummary {
   total_tokens: number;
@@ -53,6 +54,7 @@ interface UnifiedUsageRecord {
 }
 
 export default function FinancialDashboard() {
+  const chartTheme = useChartTheme();
   const [currency, setCurrency] = useState<'USD' | 'CNY'>('USD');
   const [timeRange, setTimeRange] = useState<number>(30);
   const [loading, setLoading] = useState(false);
@@ -144,7 +146,7 @@ export default function FinancialDashboard() {
   });
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto text-base-content">
+    <div className="h-full w-full overflow-y-auto p-6 space-y-6 max-w-7xl mx-auto text-base-content">
       {/* 顶部标题栏 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-5 rounded-2xl shadow-sm border border-base-200">
         <div>
@@ -277,14 +279,14 @@ export default function FinancialDashboard() {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-              <XAxis dataKey="date" stroke="#888888" fontSize={12} />
-              <YAxis stroke="#888888" fontSize={12} tickFormatter={(val) => currency === 'USD' ? `$${val}` : `¥${val}`} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} opacity={chartTheme.gridOpacity} />
+              <XAxis dataKey="date" stroke={chartTheme.axisStroke} fontSize={12} />
+              <YAxis stroke={chartTheme.axisStroke} fontSize={12} tickFormatter={(val) => currency === 'USD' ? `$${val}` : `¥${val}`} />
               <Tooltip 
                 formatter={(value: any) => [currency === 'USD' ? `$${Number(value).toFixed(2)}` : `¥${Number(value).toFixed(2)}`, '费用']}
-                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', borderRadius: '0.75rem', color: '#fff' }}
+                contentStyle={{ backgroundColor: chartTheme.tooltipBg, borderColor: chartTheme.tooltipBorder, borderRadius: '0.75rem', color: chartTheme.tooltipText, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
               />
-              <Area type="monotone" dataKey="total" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTotal)" name="全模型总支出" />
+              <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="全模型总支出" />
             </AreaChart>
           </ResponsiveContainer>
         </div>

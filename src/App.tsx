@@ -4,13 +4,9 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Settings from './pages/Settings';
-import ApiProxy from './pages/ApiProxy';
-import Monitor from './pages/Monitor';
-import TokenStats from './pages/TokenStats';
-import FinancialDashboard from './pages/FinancialDashboard';
-import Security from './pages/Security';
+import ApiProxyHub from './pages/ApiProxyHub';
+import AnalyticsHub from './pages/AnalyticsHub';
 import ThemeManager from './components/common/ThemeManager';
-import UserToken from './pages/UserToken';
 import { UpdateNotification } from './components/UpdateNotification';
 import SuggestionDeleteThinkingModal from './components/common/SuggestionDeleteThinkingModal';
 import DebugConsole from './components/debug/DebugConsole';
@@ -25,6 +21,7 @@ import { request as invoke } from './utils/request';
 import { AdminAuthGuard } from './components/common/AdminAuthGuard';
 import MiniView from './components/layout/MiniView';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import ModernThemeBridge from './components/common/ThemeBridge';
 
 const router = createBrowserRouter([
   {
@@ -46,31 +43,35 @@ const router = createBrowserRouter([
       },
       {
         path: 'api-proxy',
-        element: <ApiProxy />,
+        element: <ApiProxyHub />,
+      },
+      {
+        path: 'analytics',
+        element: <AnalyticsHub />,
       },
       {
         path: 'monitor',
-        element: <Monitor />,
+        element: <Navigate to="/analytics?tab=logs" replace />,
       },
       {
         path: 'financial-dashboard',
-        element: <FinancialDashboard />,
+        element: <Navigate to="/analytics?tab=financial" replace />,
       },
       {
         path: 'token-stats',
-        element: <TokenStats />,
+        element: <Navigate to="/analytics?tab=tokens" replace />,
       },
       {
         path: 'user-token',
-        element: <UserToken />,
+        element: <Navigate to="/api-proxy?tab=tokens" replace />,
       },
       {
         path: 'apikey-fun',
-        element: <Navigate to="/financial-dashboard" replace />,
+        element: <Navigate to="/analytics?tab=financial" replace />,
       },
       {
         path: 'security',
-        element: <Security />,
+        element: <Navigate to="/api-proxy?tab=security" replace />,
       },
       {
         path: 'settings',
@@ -295,23 +296,27 @@ function App() {
       }
     }
     return (
-      <AdminAuthGuard>
-        <ThemeManager />
-        <MiniView />
-      </AdminAuthGuard>
+      <ModernThemeBridge>
+        <AdminAuthGuard>
+          <ThemeManager />
+          <MiniView />
+        </AdminAuthGuard>
+      </ModernThemeBridge>
     );
   }
 
   return (
-    <AdminAuthGuard>
-      <ThemeManager />
-      <DebugConsole />
-      <SuggestionDeleteThinkingModal />
-      {showUpdateNotification && (
-        <UpdateNotification onClose={() => setShowUpdateNotification(false)} />
-      )}
-      <RouterProvider router={router} />
-    </AdminAuthGuard>
+    <ModernThemeBridge>
+      <AdminAuthGuard>
+        <ThemeManager />
+        <DebugConsole />
+        <SuggestionDeleteThinkingModal />
+        {showUpdateNotification && (
+          <UpdateNotification onClose={() => setShowUpdateNotification(false)} />
+        )}
+        <RouterProvider router={router} />
+      </AdminAuthGuard>
+    </ModernThemeBridge>
   );
 }
 

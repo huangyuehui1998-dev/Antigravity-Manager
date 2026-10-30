@@ -11,18 +11,16 @@
       try {
         const isMini = window.location.search.includes('mini') || 
                        (typeof window !== 'undefined' && window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label === 'mini');
+        const savedTheme = localStorage.getItem('app-theme-preference');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const shouldBeDark = savedTheme === 'dark' || ((!savedTheme || savedTheme === 'system') && systemDark);
+
         if (isMini) {
           document.documentElement.classList.add('mini-window');
           document.documentElement.style.backgroundColor = 'transparent';
         } else {
-          document.documentElement.style.backgroundColor = '#1a1f2e';
+          document.documentElement.style.backgroundColor = shouldBeDark ? '#0B0F17' : '#FAFBFC';
         }
-
-        const savedTheme = localStorage.getItem('app-theme-preference');
-        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        // Determine if should be dark for later use, but ALWAYS start with splash color
-        const shouldBeDark = savedTheme === 'dark' || ((!savedTheme || savedTheme === 'system') && systemDark);
 
         if (shouldBeDark) {
           document.documentElement.classList.add('dark');
@@ -37,9 +35,12 @@
     })();
   </script>
   <style>
-    /* Critical CSS: Force splash color initially for main window */
+    /* Critical CSS: Prevent cold start flash by aligning initial background */
     html:not(.mini-window) {
-      background-color: #1a1f2e !important;
+      background-color: #FAFBFC;
+    }
+    html.dark:not(.mini-window) {
+      background-color: #0B0F17 !important;
     }
 
     html.mini-window,

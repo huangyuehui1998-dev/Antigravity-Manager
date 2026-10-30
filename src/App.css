@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* DaisyUI Dark Theme Variable Override - Align with Zinc Deep Dark */
+[data-theme='dark'],
+.dark {
+  --color-base-100: #0B0F17 !important; /* 画布终极底色 */
+  --color-base-200: #111827 !important; /* 卡片容器色 */
+  --color-base-300: #1F2937 !important; /* 悬浮抬升色 */
+  --color-base-content: #F3F4F6 !important; /* 字体主色 */
+  --rounded-box: 0.75rem !important;
+  --rounded-btn: 0.5rem !important;
+}
+
 /* Override dark background utilities so enabled switches remain distinct. */
 .dark input.toggle[type="checkbox"]:checked {
   background-color: var(--app-toggle-active, #3b82f6);
@@ -45,7 +56,7 @@ html:not(.mini-window) {
 }
 
 html.dark:not(.mini-window) {
-  background-color: #09090b;
+  background-color: #0B0F17 !important;
 }
 
 /* 全局样式（仅限制非 mini 窗口） */
@@ -61,7 +72,7 @@ body:not(.mini-window) {
 }
 
 .dark body:not(.mini-window) {
-  background-color: #09090b;
+  background-color: #0B0F17 !important;
 }
 
 /* LobeHub UI flex center fallback for @lobehub/icons avatar components */
@@ -77,15 +88,14 @@ body:not(.mini-window) {
 
 /* Dark mode override for body strictly */
 .dark body {
-  background-color: #0f172a;
+  background-color: #0B0F17 !important;
   color: #f8fafc;
 }
 
 #root {
   width: 100%;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   overscroll-behavior: none;
 }
 

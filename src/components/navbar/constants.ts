@@ -30,14 +30,25 @@ export const LANGUAGES: Language[] = [
     { code: 'my', label: 'Bahasa Melayu', short: 'MY' },
 ];
 
-// 工具函数
-export const isActive = (pathname: string, itemPath: string): boolean => {
-    if (itemPath === '/') {
-        return pathname === '/';
-    }
-    return pathname.startsWith(itemPath);
+// 核心功能域前缀与聚合关系映射
+const DOMAIN_MAPPING: Record<string, string[]> = {
+    '/api-proxy': ['/api-proxy', '/user-token', '/security'],
+    '/analytics': ['/analytics', '/financial-dashboard', '/token-stats', '/monitor'],
+    '/accounts': ['/accounts'],
+    '/settings': ['/settings'],
 };
 
+// 增强型工具函数
+export const isRouteActive = (pathname: string, itemPath: string): boolean => {
+    if (itemPath === '/') {
+        return pathname === '/' || pathname === '/index.html';
+    }
+    const matchingPaths = DOMAIN_MAPPING[itemPath] || [itemPath];
+    return matchingPaths.some(p => pathname === p || pathname.startsWith(`${p}/`));
+};
+
+export const isActive = isRouteActive;
+
 export const getCurrentNavItem = (pathname: string, navItems: NavItem[]): NavItem => {
-    return navItems.find(item => isActive(pathname, item.path)) || navItems[0];
+    return navItems.find(item => isRouteActive(pathname, item.path)) || navItems[0];
 };

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import Navbar from '../navbar/Navbar';
+import ActiveAccountCapsule from '../navbar/ActiveAccountCapsule';
 import BackgroundTaskRunner from '../common/BackgroundTaskRunner';
 import ToastContainer from '../common/ToastContainer';
 import { useViewStore } from '../../stores/useViewStore';
@@ -13,8 +14,6 @@ function Layout() {
     const { isMiniView } = useViewStore();
 
     // Ensure correct window state when in Full View (not Mini View)
-    // This handles the case where the app was closed in Mini View (small size, no decorations)
-    // and restarted (defaults to Full View state but keeps last window properties)
     useEffect(() => {
         if (!isMiniView && isTauri()) {
             ensureFullViewState();
@@ -32,22 +31,31 @@ function Layout() {
     }
 
     return (
-        <div className="h-screen flex flex-col bg-[#FAFBFC] dark:bg-base-300">
-            {/* 全局窗口拖拽区域 - 使用 JS 手动触发拖拽，解决 HTML 属性失效问题 */}
-            <div
-                className="fixed top-0 left-0 right-0 h-9"
-                style={{
-                    zIndex: 9999,
-                    backgroundColor: 'rgba(0,0,0,0.001)',
-                    cursor: 'default',
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none'
-                }}
-                data-tauri-drag-region
-                onMouseDown={() => {
-                    getCurrentWindow().startDragging();
-                }}
-            />
+        <div className="h-screen flex flex-col bg-[#FAFBFC] dark:bg-[#0B0F17] select-none text-gray-900 dark:text-gray-100 overflow-hidden">
+            {/* 顶部 32px 原生留白拖拽区与账号胶囊 (消除 zIndex 9999 遮挡) */}
+            <header className="h-8 flex items-center justify-between px-4 bg-transparent border-b border-black/[0.04] dark:border-white/[0.06] select-none text-xs relative z-30">
+                {/* 左侧：当前激活账号微型胶囊 */}
+                <div className="flex items-center gap-2 z-10">
+                    <ActiveAccountCapsule />
+                </div>
+
+                {/* 中间核心留白区：声明原生窗口拖拽 (双击最大化，拖动移动窗口) */}
+                <div
+                    className="flex-1 h-full cursor-default"
+                    data-tauri-drag-region
+                    onMouseDown={() => {
+                        if (isTauri()) {
+                            getCurrentWindow().startDragging();
+                        }
+                    }}
+                />
+
+                {/* 右侧微型标识 */}
+                <div className="flex items-center gap-1 z-10 text-[11px] text-gray-400 opacity-60">
+                    <span>Antigravity Tools</span>
+                </div>
+            </header>
+
             <BackgroundTaskRunner />
             <ToastContainer />
             <Navbar />

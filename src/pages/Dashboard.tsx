@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import AddAccountDialog from '../components/accounts/AddAccountDialog';
 import { showToast } from '../components/common/ToastContainer';
 import BestAccounts from '../components/dashboard/BestAccounts';
+import CompactAccountMatrix from '../components/dashboard/CompactAccountMatrix';
 import { findImageQuotaModel, findQuotaModel } from '../config/modelConfig';
 import CurrentAccount from '../components/dashboard/CurrentAccount';
 import { useAccountStore } from '../stores/useAccountStore';
@@ -64,6 +65,14 @@ function Dashboard() {
         const saved = localStorage.getItem('dashboard_filter_proxy_pool');
         return saved !== null ? saved === 'true' : true;
     });
+
+    const [densityMode, setDensityMode] = useState<'comfort' | 'compact'>(() => {
+        return (localStorage.getItem('dashboard_density_mode') as 'comfort' | 'compact') || 'comfort';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('dashboard_density_mode', densityMode);
+    }, [densityMode]);
 
     const [quotaView, setQuotaView] = useState<DashboardQuotaView>(() => {
         const saved = localStorage.getItem('dashboard_quota_view');
@@ -442,6 +451,34 @@ function Dashboard() {
                                 title={t('dashboard.btn_title_all_available', '当前：统计所有正常未停用的可用账号配额')}
                             >
                                 {t('dashboard.btn_all_available', { count: stats.available, defaultValue: `可用账号 (${stats.available})` })}
+                            </button>
+                        </div>
+
+                        {/* 4. 视图密度切换: 舒适卡片 vs 紧凑矩阵 */}
+                        <div className="flex items-center bg-gray-100 dark:bg-white/[0.04] p-1 rounded-xl text-xs dark:border dark:border-white/[0.08]">
+                            <button
+                                type="button"
+                                onClick={() => setDensityMode('comfort')}
+                                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                                    densityMode === 'comfort'
+                                        ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-300 shadow-sm font-bold dark:border dark:border-white/[0.12]'
+                                        : 'text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200'
+                                }`}
+                                title="舒适卡片视图 (适合 1~4 个主力账号)"
+                            >
+                                舒适视图
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDensityMode('compact')}
+                                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                                    densityMode === 'compact'
+                                        ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-300 shadow-sm font-bold dark:border dark:border-white/[0.12]'
+                                        : 'text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200'
+                                }`}
+                                title="紧凑高密度矩阵 (一屏 16 账号极速扫视)"
+                            >
+                                紧凑矩阵
                             </button>
                         </div>
                     </div>
@@ -877,21 +914,29 @@ function Dashboard() {
                         </div>
                     </div>
 
-                {/* 双栏布局 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <CurrentAccount
-                        account={currentAccount}
-                        accounts={accounts}
-                        activeClients={activeClients}
-                        onSwitch={(targetIde) => navigate('/accounts', { state: { targetIde } })}
-                    />
-                    <BestAccounts
+                {/* 双模视图切换：紧凑矩阵 vs 舒适卡片 */}
+                {densityMode === 'compact' ? (
+                    <CompactAccountMatrix
                         accounts={accounts}
                         currentAccountId={currentAccount?.id}
-                        activeClients={activeClients}
                         onSwitch={handleSwitch}
                     />
-                </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <CurrentAccount
+                            account={currentAccount}
+                            accounts={accounts}
+                            activeClients={activeClients}
+                            onSwitch={(targetIde) => navigate('/accounts', { state: { targetIde } })}
+                        />
+                        <BestAccounts
+                            accounts={accounts}
+                            currentAccountId={currentAccount?.id}
+                            activeClients={activeClients}
+                            onSwitch={handleSwitch}
+                        />
+                    </div>
+                )}
 
                 {/* 快速链接已精简并入顶部/卡片 */}
             </motion.div>

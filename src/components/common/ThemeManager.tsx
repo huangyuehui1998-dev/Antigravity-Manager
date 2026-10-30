@@ -42,7 +42,7 @@ export default function ThemeManager() {
             try {
                 if (!isLinux() && (window as any).__TAURI_INTERNALS__ && !isMini) {
                     const win = getCurrentWindow();
-                    const bgColor = isDark ? '#1d232a' : '#FAFBFC';
+                    const bgColor = isDark ? '#0B0F17' : '#FAFBFC';
                     // Don't await this, let it happen in background to avoid blocking React render
                     win.setBackgroundColor(bgColor).catch(e =>
                         console.error('Failed to set window background color:', e)
@@ -72,7 +72,7 @@ export default function ThemeManager() {
                 }
                 root.classList.add('mini-window');
             } else {
-                root.style.backgroundColor = isDark ? '#1d232a' : '#FAFBFC';
+                root.style.backgroundColor = isDark ? '#0B0F17' : '#FAFBFC';
             }
 
             // Set Tailwind dark mode class

@@ -1,5 +1,5 @@
 import { useState, useEffect, startTransition } from 'react';
-import { Save, Github, User, MessageCircle, ExternalLink, RefreshCw, Heart, Coffee, LayoutDashboard, Users, Network, Activity, BarChart3, Settings as SettingsIcon, Lock, CheckCircle2, Globe, Send, KeyRound, Copy, Check } from 'lucide-react';
+import { Save, Github, User, MessageCircle, ExternalLink, RefreshCw, Heart, Coffee, LayoutDashboard, Users, Network, BarChart3, Settings as SettingsIcon, CheckCircle2, Globe, Send, Copy, Check } from 'lucide-react';
 import { request as invoke } from '../utils/request';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useConfigStore } from '../stores/useConfigStore';
@@ -809,15 +809,11 @@ function Settings() {
                                     </p>
                                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                         {[
-                                            { path: '/', label: t('nav.dashboard'), icon: LayoutDashboard },
-                                            { path: '/accounts', label: t('nav.accounts'), icon: Users },
-                                            { path: '/api-proxy', label: t('nav.proxy'), icon: Network },
-                                            { path: '/apikey-fun', label: t('nav.apikey_fun', '中转站'), icon: KeyRound },
-                                            { path: '/monitor', label: t('nav.call_records'), icon: Activity },
-                                            { path: '/token-stats', label: t('nav.token_stats'), icon: BarChart3 },
-                                            { path: '/user-token', label: t('nav.user_token', 'User Tokens'), icon: Users },
-                                            { path: '/security', label: t('nav.security'), icon: Lock },
-                                            { path: '/settings', label: t('nav.settings'), icon: SettingsIcon },
+                                            { path: '/', label: t('nav.dashboard', '控制台'), icon: LayoutDashboard },
+                                            { path: '/accounts', label: t('nav.accounts', '账号矩阵'), icon: Users },
+                                            { path: '/analytics', label: t('nav.analytics', '统一分析中心'), icon: BarChart3 },
+                                            { path: '/api-proxy', label: t('nav.proxy', '本地网关中枢'), icon: Network },
+                                            { path: '/settings', label: t('nav.settings', '系统设置'), icon: SettingsIcon },
                                         ].map((item) => {
                                             const hiddenItems = formData.hidden_menu_items || [];
                                             const isVisible = !hiddenItems.includes(item.path);
