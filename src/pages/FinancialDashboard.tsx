@@ -114,7 +114,7 @@ export default function FinancialDashboard() {
   };
 
   useEffect(() => {
-    fetchData();
+    invoke('refresh_financial_analytics').then(() => fetchData()).catch(() => fetchData());
   }, [timeRange]);
 
   // 格式化金额辅助函数

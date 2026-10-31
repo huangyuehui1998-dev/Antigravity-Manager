@@ -222,6 +222,8 @@ pub fn load_pricing_table() -> HashMap<String, PricingEntry> {
         ("gpt-4o-mini", "GPT-4o Mini", 0.15, 0.60, 0.075),
         ("gpt-5.6-sol", "GPT-5.6 Sol", 5.0, 30.0, 0.5),
         ("gpt-5.6-terra", "GPT-5.6 Terra", 2.5, 15.0, 0.25),
+        ("gemini-3.8-flash", "Gemini 3.8 Flash", 0.75, 3.75, 0.075),
+        ("claude-opus-4-6-thinking", "Claude Opus 4.6 (Thinking)", 15.0, 75.0, 1.5),
         ("gemini-1.5-pro", "Gemini 1.5 Pro", 1.25, 5.0, 0.3125),
         ("gemini-1.5-flash", "Gemini 1.5 Flash", 0.075, 0.30, 0.01875),
         ("gemini-2.0-flash", "Gemini 2.0 Flash", 0.10, 0.40, 0.025),
@@ -273,6 +275,12 @@ pub fn normalize_model_name(raw: &str) -> (String, String) {
     }
     if raw_lower.contains("gpt-4o-mini") {
         return ("gpt-4o-mini".to_string(), "GPT-4o Mini".to_string());
+    }
+    if raw_lower.contains("3.8") || raw_lower.contains("3-8") || raw_lower.contains("gemini-3.8") {
+        return ("gemini-3.8-flash".to_string(), "Gemini 3.8 Flash".to_string());
+    }
+    if raw_lower.contains("opus-4-6") || raw_lower.contains("opus-4.6") {
+        return ("claude-opus-4-6-thinking".to_string(), "Claude Opus 4.6 (Thinking)".to_string());
     }
     if raw_lower.contains("gpt-4o") {
         return ("gpt-4o".to_string(), "GPT-4o".to_string());
@@ -619,6 +627,7 @@ pub fn refresh_all_analytics() -> Result<(usize, usize), String> {
     let mut conn = open_analytics_db()?;
     let pricing = load_pricing_table();
 
+    let ag_count = crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing)?;
     let cur_count = sync_cursor_data(&mut conn, &pricing)?;
     let codex_count = sync_codex_data(&mut conn, &pricing)?;
 
@@ -645,7 +654,7 @@ pub fn refresh_all_analytics() -> Result<(usize, usize), String> {
 
     let _ = prune_expired_logs(&conn);
 
-    Ok((cur_count, codex_count))
+    Ok((ag_count + cur_count, codex_count))
 }
 
 /// 获取财务看板总览数据 (KPI 顶层数据卡片)

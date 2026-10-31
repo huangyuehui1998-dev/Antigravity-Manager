@@ -622,6 +622,15 @@ pub fn run() {
             modules::scheduler::start_scheduler(Some(app.handle().clone()), scheduler_state.inner().clone());
             info!("Smart scheduler (7-Day Weekly Reset Warmup) initialized.");
 
+            // 异步后台增量同步全电脑 AI 用量数据湖 (Antigravity & Cursor)
+            std::thread::spawn(|| {
+                tracing::info!("Starting background sync of AI analytics data lake...");
+                match modules::analytics_hub::refresh_all_analytics() {
+                    Ok((total, codex)) => tracing::info!("Analytics background sync completed: {} total records, {} codex", total, codex),
+                    Err(e) => tracing::warn!("Analytics background sync error: {}", e),
+                }
+            });
+
             // [PHASE 1] 已整合至 Axum 端口 (8045)，不再单独启动 19527 端口
             info!("Management API integrated into main proxy server (port 8045)");
 
