@@ -1,5 +1,5 @@
 # Antigravity Tools 🚀
-> 专业级 AI 账号管理与协议代理系统 (v5.0.0)
+> 专业级 AI 账号管理与协议代理系统 (v5.1.0)
 
 <div align="center">
   <img src="public/icon.png" width="100" height="100" alt="Antigravity Tools Logo">
@@ -11,7 +11,7 @@
       <img src="https://img.shields.io/github/v/release/huangyuehui1998-dev/Antigravity-Manager?color=blue&style=flat-square" alt="GitHub release">
     </a>
     <a href="https://github.com/huangyuehui1998-dev/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-5.0.0-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-5.1.0-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -497,7 +497,9 @@ response = client.chat.completions.create(
 
 ## 📝 更新日志
 
-> 最新版本 **v5.0.0**（2026-10-24）：基于纯净同侪校准与阶梯探针的自适应 QoS 调度系统（TTFT 毫秒感知、纯净基线比对、瞬态 Suspicious 打标、粘性会话即刻解绑与后台自愈阶梯探针，解决上游静默降级排队卡死）(Fixes #3720, PR #3725)；官方权威模型全景升级、分级思考传输协议（thinkingLevel vs thinkingBudget）与 Argon 独立配额防穿透隔离，彻底解耦 quotaInfo 过滤门禁消除 503 缺陷，清退废弃代号并标准化各协议上下文与最大输出规格 (Fixes #3735, Fixes #3737)；OpenAI Responses API 结构化输出（responseSchema / text.format）规范化支持、思考预算收敛至 1024 杜绝 30s 硬超时、流水线工具冲突统一治理与出站受控整包解壳 (Fixes #3710, Ref #3723)；Mini 桌面悬浮视窗 macOS 原生真透明与拖拽置顶权限、深浅模式与 12 语种跨窗口毫秒级无感同步、原生 UI 主线程调度彻底根除 Win32 消息循环死锁，首帧同步判定与 React Router 404 兜底 (Fixes #3733, Ref #3718, #3721, Ref #3738, Ref #3741)；官方 Base64 哨兵规范对齐、Claude 全链路 0 哨兵与并发工具严格留空、异构工具切回 Gemini 赋予免检通行证且哨兵零落库；流式巨型工具调用缓冲自动跃迁至 Transition 宽限期赋予 180s 保护，上游响应头看门狗收敛至 30s，接入 FailureStatusTracker 根除 Claude 429 状态码泄漏 (Fixes #3739, Fixes #3713, Ref #3506, Ref #3525, PR #3740, PR #3714)；异步高性能批量流式导入与索引持久化重构（494 账号导入耗时由 28 分钟压缩至 15~20 秒，提速超 60 倍），冷启动读锁解耦秒级直出与本地快照首帧 0ms 水合消除空态闪烁 (Fixes #3726)；系统托盘富文本悬停配额卡片与 macOS 原生状态栏配额标题，Linux 窗口抢占置顶与自动拉起根治，解除经典款切号对 CLI 凭据的覆盖冲突 (Fixes #3719, Fixes #3728, Fixes #3686)；代理池专属绑定防 Direct 源站泄漏加固，集成 Hermes Agent / 本地探针端点（/props, /version），Gemini 协议支持标准 URL Query 传参鉴权，Web/Headless 模式保存配置全量内存热重载（感谢 @cubelikeplayDaniel, @jeikl）。
+> 最新版本 **v5.1.0**（2026-11-01）：彻底修复 Windows CJK 汉字 DirectWrite 挤压重叠 bug，物理隔离中文字距与等宽数字排版 (Fixes #3742)；账号列表操作列重构为 3 级现代交互胶囊（高频主操作 `[切换]`、快捷 `[刷新]`、更多功能菜单 `[···]`），列宽释放 50% 并加入防误删二级确认保护 (Fixes #3743)；新增 Kiro 账号与用量全自动原生扫描器 (`kiro_scanner`)，打通 Protobuf/SQLite 会话流水并无缝入湖 `analytics_hub.db`，统一多周期用量与金额核算 (Fixes #3744)；全套跨设备数据无损承接与便携免安装发布套件，支持随 U 盘即插即用或通过迁移助手一键导入/导出所有历史账号凭据与数据库；实施严格的 Pre-push 安全白盒审计防线。
+
+> 历史版本 **v5.0.0**（2026-10-24）：基于纯净同侪校准与阶梯探针的自适应 QoS 调度系统（TTFT 毫秒感知、纯净基线比对、瞬态 Suspicious 打标、粘性会话即刻解绑与后台自愈阶梯探针，解决上游静默降级排队卡死）(Fixes #3720, PR #3725)；官方权威模型全景升级、分级思考传输协议（thinkingLevel vs thinkingBudget）与 Argon 独立配额防穿透隔离，彻底解耦 quotaInfo 过滤门禁消除 503 缺陷，清退废弃代号并标准化各协议上下文与最大输出规格 (Fixes #3735, Fixes #3737)；OpenAI Responses API 结构化输出（responseSchema / text.format）规范化支持、思考预算收敛至 1024 杜绝 30s 硬超时、流水线工具冲突统一治理与出站受控整包解壳 (Fixes #3710, Ref #3723)；Mini 桌面悬浮视窗 macOS 原生真透明与拖拽置顶权限、深浅模式与 12 语种跨窗口毫秒级无感同步、原生 UI 主线程调度彻底根除 Win32 消息循环死锁，首帧同步判定与 React Router 404 兜底 (Fixes #3733, Ref #3718, #3721, Ref #3738, Ref #3741)；官方 Base64 哨兵规范对齐、Claude 全链路 0 哨兵与并发工具严格留空、异构工具切回 Gemini 赋予免检通行证且哨兵零落库；流式巨型工具调用缓冲自动跃迁至 Transition 宽限期赋予 180s 保护，上游响应头看门狗收敛至 30s，接入 FailureStatusTracker 根除 Claude 429 状态码泄漏 (Fixes #3739, Fixes #3713, Ref #3506, Ref #3525, PR #3740, PR #3714)；异步高性能批量流式导入与索引持久化重构（494 账号导入耗时由 28 分钟压缩至 15~20 秒，提速超 60 倍），冷启动读锁解耦秒级直出与本地快照首帧 0ms 水合消除空态闪烁 (Fixes #3726)；系统托盘富文本悬停配额卡片与 macOS 原生状态栏配额标题，Linux 窗口抢占置顶与自动拉起根治，解除经典款切号对 CLI 凭据的覆盖冲突 (Fixes #3719, Fixes #3728, Fixes #3686)；代理池专属绑定防 Direct 源站泄漏加固，集成 Hermes Agent / 本地探针端点（/props, /version），Gemini 协议支持标准 URL Query 传参鉴权，Web/Headless 模式保存配置全量内存热重载（感谢 @cubelikeplayDaniel, @jeikl）。
 
 👉 **[查看完整更新日志 CHANGELOG.md →](CHANGELOG.md)**
 
