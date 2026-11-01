@@ -70,10 +70,9 @@ pub struct PeriodRollupItem {
     pub request_count: i64,
 }
 
-/// 获取 analytics_hub.db 路径
+/// 获取 analytics_hub.db 路径（对齐 ABV_DATA_DIR 便携模式与标准路径）
 pub fn get_analytics_db_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "Failed to get home dir".to_string())?;
-    let data_dir = home.join(".antigravity_tools");
+    let data_dir = crate::modules::account::get_data_dir()?;
     if !data_dir.exists() {
         fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data dir: {}", e))?;
     }
@@ -627,9 +626,9 @@ pub fn refresh_all_analytics() -> Result<(usize, usize), String> {
     let mut conn = open_analytics_db()?;
     let pricing = load_pricing_table();
 
-    let ag_count = crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing)?;
-    let cur_count = sync_cursor_data(&mut conn, &pricing)?;
-    let codex_count = sync_codex_data(&mut conn, &pricing)?;
+    let ag_count = crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing).unwrap_or(0);
+    let cur_count = sync_cursor_data(&mut conn, &pricing).unwrap_or(0);
+    let codex_count = sync_codex_data(&mut conn, &pricing).unwrap_or(0);
     let _kiro_count = crate::modules::kiro_scanner::sync_kiro_data(&mut conn, &pricing).unwrap_or(0);
 
     // 重新计算每日聚合持久表
