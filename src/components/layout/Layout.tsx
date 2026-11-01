@@ -9,9 +9,11 @@ import MiniView from './MiniView';
 import { useEffect } from 'react';
 import { isTauri } from '../../utils/env';
 import { ensureFullViewState } from '../../utils/windowManager';
+import { useAppVersion } from '../../hooks/useAppVersion';
 
 function Layout() {
     const { isMiniView } = useViewStore();
+    const appVersion = useAppVersion();
 
     // Ensure correct window state when in Full View (not Mini View)
     useEffect(() => {
@@ -51,8 +53,11 @@ function Layout() {
                 />
 
                 {/* 右侧微型标识 */}
-                <div className="flex items-center gap-1 z-10 text-[11px] text-gray-400 opacity-60">
+                <div className="flex items-center gap-1.5 z-10 text-[11px] text-gray-400 opacity-70">
                     <span>Antigravity Tools</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-black/[0.04] dark:bg-white/[0.06] text-gray-500 dark:text-gray-400 border border-black/[0.06] dark:border-white/[0.08]">
+                        v{appVersion}
+                    </span>
                 </div>
             </header>
 

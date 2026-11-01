@@ -297,6 +297,14 @@ const TARGET_FILES = [
         ),
     },
     {
+        name: 'src/hooks/useAppVersion.ts',
+        relPath: 'src/hooks/useAppVersion.ts',
+        replace: (content) => content.replace(
+            `DEFAULT_APP_VERSION = '${currentVersion}'`,
+            `DEFAULT_APP_VERSION = '${newVersion}'`
+        ),
+    },
+    {
         name: 'src/pages/Settings.tsx',
         relPath: 'src/pages/Settings.tsx',
         replace: (content) => content.replace(

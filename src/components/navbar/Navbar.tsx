@@ -79,7 +79,7 @@ function Navbar() {
             <div className="max-w-7xl mx-auto px-6 relative" style={{ zIndex: 10 }}>
                 <div className="flex items-center h-14 gap-4">
                     {/* Logo */}
-                    <div className="@container/logo basis-[180px] shrink min-w-0">
+                    <div className="@container/logo shrink-0 min-w-0">
                         <NavLogo />
                     </div>
 

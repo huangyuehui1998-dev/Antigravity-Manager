@@ -129,6 +129,19 @@ export default function MiniView() {
     const [copied, setCopied] = useState(false);
     // 默认是不停留的（Popover 模式），只有用户显式点击图钉才保持常驻悬浮
     const [isPinned, setIsPinned] = useState(false);
+    const [appVersion, setAppVersion] = useState<string>('5.1.0');
+
+    useEffect(() => {
+        if (isTauri()) {
+            import('@tauri-apps/api/app').then(({ getVersion }) => {
+                getVersion().then(v => {
+                    if (v) setAppVersion(v);
+                }).catch(() => {});
+            });
+        } else {
+            setAppVersion('5.1.0');
+        }
+    }, []);
 
     // 默认定位到活跃客户端 Tab，优先 classic/ide/agy，绝不落入 pool
     const [activeTab, setActiveTab] = useState<MiniTab>(() => {
@@ -1067,11 +1080,14 @@ export default function MiniView() {
                     {/* 中间：打开主控制台核心按钮（Lemon 风格胶囊按钮） */}
                     <button
                         onClick={handleMaximize}
-                        className="flex items-center gap-1.5 px-3.5 py-1 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-100 border border-gray-200/90 dark:border-white/10 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-100 border border-gray-200/90 dark:border-white/10 shadow-xs transition-all active:scale-95 cursor-pointer"
                         title={t('tray.open_console', '打开主控制台')}
                     >
-                        <Maximize2 size={12} className="text-blue-500" />
+                        <Maximize2 size={12} className="text-blue-500 shrink-0" />
                         <span>{t('tray.open_console', '打开主控制台')}</span>
+                        <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-black/[0.04] dark:bg-white/[0.08] text-gray-400 dark:text-zinc-400 font-normal">
+                            v{appVersion}
+                        </span>
                     </button>
 
                     {/* 右侧：退出应用 */}
