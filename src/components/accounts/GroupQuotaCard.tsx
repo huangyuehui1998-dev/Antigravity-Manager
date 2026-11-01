@@ -107,39 +107,44 @@ export function GroupQuotaCard({ summary, liveLimit, isProtected, fullWidth }: G
                     </div>
 
                     {/* Content */}
-                    <div className="relative z-10 w-full flex items-center text-[10px] font-mono leading-none gap-1.5">
-                        {/* Title + Icon */}
-                        <span className={cn(
-                            "flex-1 min-w-0 text-gray-700 dark:text-gray-200 font-bold truncate text-left flex items-center gap-1",
-                            isUnavailable && "text-rose-700 dark:text-rose-300"
-                        )}>
+                    <div className="relative z-10 w-full flex items-center justify-between text-[11px] font-sans leading-none px-0.5 select-none">
+                        {/* Title + Icon + Window Badge */}
+                        <div className="flex items-center gap-1 min-w-0">
                             <Icon size={12} className="shrink-0" />
-                            <span className="truncate">{label}</span>
-                            <span className="text-[9px] font-semibold text-gray-700 dark:text-gray-200 shrink-0">5H</span>
-                        </span>
-
-                        {/* Reset Time */}
-                        <div className="w-[58px] flex justify-start shrink-0">
-                            {fiveHour.resetTime ? (
-                                <span className={cn("flex items-center gap-0.5 font-medium transition-colors truncate", getTimeColorClass(fiveHour.resetTime))}>
-                                    <Clock className="w-2.5 h-2.5 shrink-0" />
-                                    {formatTimeRemaining(fiveHour.resetTime)}
-                                </span>
-                            ) : (
-                                <span className="text-gray-400 dark:text-gray-500 italic scale-90">N/A</span>
-                            )}
+                            <span className={cn(
+                                "font-semibold truncate min-w-0 " + (fullWidth ? "max-w-[140px] sm:max-w-none" : "max-w-[65px] sm:max-w-[85px] xl:max-w-[110px]"),
+                                isUnavailable ? "text-rose-700 dark:text-rose-300" : "text-gray-800 dark:text-gray-200"
+                            )} title={label}>
+                                {label}
+                            </span>
+                            <span className="px-1 py-0.5 rounded text-[9px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40 shrink-0">
+                                5H
+                            </span>
                         </div>
 
-                        {/* Percentage */}
-                        <span className={cn(
-                            "text-right font-bold transition-colors flex items-center justify-end gap-0.5 shrink-0 w-[28px]",
-                            isUnavailable ? "text-rose-700 dark:text-rose-300" : getTextColorClass(fiveHourPercentage)
-                        )}>
-                            {isProtected && (
-                                <span title={t('accounts.quota_protected')}><Lock className="w-2.5 h-2.5 text-amber-500" /></span>
-                            )}
-                            {`${fiveHourPercentage}%`}
-                        </span>
+                        {/* Reset Time & Percentage */}
+                        <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] tabular-nums">
+                            <div className="w-[52px] flex justify-start shrink-0">
+                                {fiveHour.resetTime ? (
+                                    <span className={cn("flex items-center gap-0.5 font-medium transition-colors truncate", getTimeColorClass(fiveHour.resetTime))}>
+                                        <Clock className="w-2.5 h-2.5 shrink-0" />
+                                        {formatTimeRemaining(fiveHour.resetTime)}
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-400 dark:text-gray-500 italic scale-90">N/A</span>
+                                )}
+                            </div>
+
+                            <span className={cn(
+                                "font-bold text-right min-w-[28px] flex items-center justify-end gap-0.5",
+                                isUnavailable ? "text-rose-700 dark:text-rose-300" : getTextColorClass(fiveHourPercentage)
+                            )}>
+                                {isProtected && (
+                                    <span title={t('accounts.quota_protected')}><Lock className="w-2.5 h-2.5 text-amber-500" /></span>
+                                )}
+                                {`${fiveHourPercentage}%`}
+                            </span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -167,19 +172,21 @@ export function GroupQuotaCard({ summary, liveLimit, isProtected, fullWidth }: G
                     </div>
 
                     {/* Content */}
-                    <div className="relative z-10 w-full flex items-center text-[10px] font-mono leading-none gap-1.5">
-                        <span className={cn(
-                            "flex-1 min-w-0 text-gray-700 dark:text-gray-200 font-bold truncate text-left flex items-center gap-1",
-                            (summary.isWeeklyExhausted || (fiveHour === undefined && isUnavailable)) && "text-rose-700 dark:text-rose-300"
-                        )}>
-                            {/* 统一展示图标、分组名称与周配额标识 */}
+                    <div className="relative z-10 w-full flex items-center justify-between text-[11px] font-sans leading-none px-0.5 select-none">
+                        {/* Title + Icon + Window Badge */}
+                        <div className="flex items-center gap-1 min-w-0">
                             <Icon size={12} className="shrink-0" />
-                            <span className="truncate">{weeklyLabel}</span>
-                            <span className="text-[9px] font-semibold text-gray-700 dark:text-gray-200 shrink-0">
+                            <span className={cn(
+                                "font-semibold truncate min-w-0 " + (fullWidth ? "max-w-[140px] sm:max-w-none" : "max-w-[65px] sm:max-w-[85px] xl:max-w-[110px]"),
+                                (summary.isWeeklyExhausted || (fiveHour === undefined && isUnavailable)) ? "text-rose-700 dark:text-rose-300" : "text-gray-800 dark:text-gray-200"
+                            )} title={weeklyLabel}>
+                                {weeklyLabel}
+                            </span>
+                            <span className="px-1 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40 shrink-0">
                                 {t('accounts.quota_window_weekly_short', '周配额')}
                             </span>
                             {weekly.cycleTokens !== undefined && weekly.cycleTokens !== null && weekly.cycleTokens > 0 && (
-                                <span className="text-[9px] font-medium text-gray-600 dark:text-gray-300 shrink-0"
+                                <span className="text-[9px] font-medium text-gray-400 dark:text-gray-500 shrink-0"
                                       title={t('accounts.weekly_tokens_tooltip')}>
                                     ({weekly.cycleTokens.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 })})
                                 </span>
@@ -191,30 +198,31 @@ export function GroupQuotaCard({ summary, liveLimit, isProtected, fullWidth }: G
                                     <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold">Low</span>
                                 </span>
                             )}
-                        </span>
-
-                        {/* Weekly Reset Time */}
-                        <div className="w-[58px] flex justify-start shrink-0">
-                            {weekly.resetTime ? (
-                                <span className={cn("flex items-center gap-0.5 font-medium transition-colors truncate", getTimeColorClass(weekly.resetTime))}>
-                                    <Clock className="w-2.5 h-2.5 shrink-0" />
-                                    {formatTimeRemaining(weekly.resetTime)}
-                                </span>
-                            ) : (
-                                <span className="text-gray-400 dark:text-gray-500 italic scale-90">N/A</span>
-                            )}
                         </div>
 
-                        {/* Percentage */}
-                        <span className={cn(
-                            "text-right font-bold transition-colors flex items-center justify-end gap-0.5 shrink-0 w-[28px]",
-                            summary.isWeeklyExhausted ? "text-rose-700 dark:text-rose-300" : getTextColorClass(weeklyPercentage)
-                        )}>
-                            {fiveHour === undefined && isProtected && (
-                                <span title={t('accounts.quota_protected')}><Lock className="w-2.5 h-2.5 text-amber-500" /></span>
-                            )}
-                            {weeklyPercentage}%
-                        </span>
+                        {/* Weekly Reset Time & Percentage */}
+                        <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] tabular-nums">
+                            <div className="w-[52px] flex justify-start shrink-0">
+                                {weekly.resetTime ? (
+                                    <span className={cn("flex items-center gap-0.5 font-medium transition-colors truncate", getTimeColorClass(weekly.resetTime))}>
+                                        <Clock className="w-2.5 h-2.5 shrink-0" />
+                                        {formatTimeRemaining(weekly.resetTime)}
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-400 dark:text-gray-500 italic scale-90">N/A</span>
+                                )}
+                            </div>
+
+                            <span className={cn(
+                                "font-bold text-right min-w-[28px] flex items-center justify-end gap-0.5",
+                                summary.isWeeklyExhausted ? "text-rose-700 dark:text-rose-300" : getTextColorClass(weeklyPercentage)
+                            )}>
+                                {fiveHour === undefined && isProtected && (
+                                    <span title={t('accounts.quota_protected')}><Lock className="w-2.5 h-2.5 text-amber-500" /></span>
+                                )}
+                                {weeklyPercentage}%
+                            </span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -222,7 +230,7 @@ export function GroupQuotaCard({ summary, liveLimit, isProtected, fullWidth }: G
             {/* 如果两者都不存在（数据缺失），展示占位条 */}
             {fiveHour === undefined && !weekly && (
                 <div className="relative h-[22px] flex items-center px-1.5 rounded-md overflow-hidden border border-gray-100/50 dark:border-white/5 bg-gray-50/30 dark:bg-white/5">
-                    <div className="relative z-10 w-full flex items-center text-[10px] font-mono leading-none gap-1.5">
+                    <div className="relative z-10 w-full flex items-center text-[11px] font-sans leading-none gap-1 select-none">
                         <span className="flex-1 min-w-0 text-gray-700 dark:text-gray-200 font-bold truncate text-left flex items-center gap-1">
                             <Icon size={12} className="shrink-0 opacity-60" />
                             <span className="truncate">{label}</span>

@@ -72,7 +72,7 @@ pub(crate) fn get_db_path() -> Result<PathBuf, String> {
     Ok(data_dir.join("token_stats.db"))
 }
 
-fn connect_db() -> Result<Connection, String> {
+pub(crate) fn connect_db() -> Result<Connection, String> {
     let db_path = get_db_path()?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
 
@@ -222,6 +222,73 @@ pub fn record_usage(
 }
 
 /// Attach current weekly usage without loading raw history or persisting derived totals.
+/// Attach multi-period consumption metrics (5H rolling, 7D rolling, 30D rolling)
+pub(crate) fn populate_account_consumption(accounts: &mut [crate::models::Account]) -> Result<(), String> {
+    if accounts.is_empty() {
+        return Ok(());
+    }
+    let is_single = accounts.len() == 1;
+    let conn = connect_db()?;
+    let now = chrono::Utc::now().timestamp();
+    let ts_5h = now - 18000;
+    let ts_7d = now - 604800;
+    let ts_30d = now - 2592000;
+
+    for account in accounts.iter_mut() {
+        let prefix = account.email.split('@').next().unwrap_or(&account.email);
+        let prefix_pattern = format!("%{}%", prefix);
+
+        let query_period = |ts: i64| -> (i64, f64) {
+            conn.query_row(
+                "SELECT COALESCE(SUM(total_tokens), 0), 
+                        COALESCE(SUM(total_tokens * 0.000003), 0.0)
+                 FROM token_usage
+                 WHERE (account_email = ?1 OR account_email LIKE ?2) AND timestamp >= ?3",
+                params![&account.email, &prefix_pattern, ts],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            ).unwrap_or((0, 0.0))
+        };
+
+        let (mut tokens_5h, mut cost_usd_5h) = query_period(ts_5h);
+        let (mut tokens_7d, mut cost_usd_7d) = query_period(ts_7d);
+        let (mut tokens_30d, mut cost_usd_30d) = query_period(ts_30d);
+
+        // Fallback for single account setup: if unmatched, aggregate all tokens in time window
+        if tokens_30d == 0 && is_single {
+            let total_query = |ts: i64| -> (i64, f64) {
+                conn.query_row(
+                    "SELECT COALESCE(SUM(total_tokens), 0), 
+                            COALESCE(SUM(total_tokens * 0.000003), 0.0)
+                     FROM token_usage
+                     WHERE timestamp >= ?1",
+                    params![ts],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                ).unwrap_or((0, 0.0))
+            };
+            let (t5, c5) = total_query(ts_5h);
+            let (t7, c7) = total_query(ts_7d);
+            let (t30, c30) = total_query(ts_30d);
+            tokens_5h = t5;
+            cost_usd_5h = c5;
+            tokens_7d = t7;
+            cost_usd_7d = c7;
+            tokens_30d = t30;
+            cost_usd_30d = c30;
+        }
+
+        account.consumption = Some(crate::models::account::AccountConsumption {
+            tokens_5h,
+            cost_usd_5h,
+            tokens_7d,
+            cost_usd_7d,
+            tokens_30d,
+            cost_usd_30d,
+        });
+    }
+
+    Ok(())
+}
+
 pub(crate) fn populate_weekly_usage(accounts: &mut [crate::models::Account]) -> Result<(), String> {
     if !accounts.iter().any(|account| {
         account

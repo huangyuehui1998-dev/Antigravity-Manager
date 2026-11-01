@@ -255,6 +255,7 @@ pub fn sync_antigravity_data(
             );
 
             let mut batch_count = 0;
+            let mut ts_conn_opt = crate::modules::token_stats::connect_db().ok();
             for (idx, data) in r_iter.flatten() {
                 if data.is_empty() { continue; }
                 let top = parse_proto_fields(&data);
@@ -321,6 +322,28 @@ pub fn sync_antigravity_data(
                             cost_cny
                         ],
                     );
+                    if let Some(ref mut ts_conn) = ts_conn_opt {
+                        let hour_bucket = chrono::DateTime::from_timestamp_millis(timestamp)
+                            .map(|dt| dt.format("%Y-%m-%d %H:00").to_string())
+                            .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d %H:00").to_string());
+                        let ts_sec = timestamp / 1000;
+                        let _ = ts_conn.execute(
+                            "INSERT INTO token_usage (timestamp, account_email, model, input_tokens, output_tokens, cached_tokens, total_tokens)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                            params![ts_sec, &conv_title, &normalized, inp, out, cr, total_tokens],
+                        );
+                        let _ = ts_conn.execute(
+                            "INSERT INTO token_stats_hourly (hour_bucket, account_email, total_input_tokens, total_output_tokens, total_cached_tokens, total_tokens, request_count)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)
+                             ON CONFLICT(hour_bucket, account_email) DO UPDATE SET
+                                total_input_tokens = total_input_tokens + ?3,
+                                total_output_tokens = total_output_tokens + ?4,
+                                total_cached_tokens = total_cached_tokens + ?5,
+                                total_tokens = total_tokens + ?6,
+                                request_count = request_count + 1",
+                            params![hour_bucket, &conv_title, inp, out, cr, total_tokens],
+                        );
+                    }
                     batch_count += 1;
                 }
             }

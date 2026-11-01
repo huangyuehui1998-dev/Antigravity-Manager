@@ -27,6 +27,7 @@ import {
     ArrowRightLeft,
     RefreshCw,
     Trash2,
+    MoreHorizontal,
     Download,
     Fingerprint,
     Info,
@@ -89,7 +90,9 @@ interface AccountTableProps {
 }
 
 interface SortableRowProps {
+    index?: number;
     account: Account;
+    consumptionWindow?: '5h' | '7d' | '30d';
     selected: boolean;
     isRefreshing: boolean;
     isCurrent: boolean;
@@ -111,7 +114,9 @@ interface SortableRowProps {
 }
 
 interface AccountRowContentProps {
+    index?: number;
     account: Account;
+    consumptionWindow?: '5h' | '7d' | '30d';
     isCurrent: boolean;
     activeClients?: ActiveClientsStatus;
     isRefreshing: boolean;
@@ -187,6 +192,7 @@ function extractAccountResetTime(account: Account): number | null {
  * 使用 @dnd-kit/sortable 实现拖拽功能
  */
 function SortableAccountRow({
+    index = 0,
     account,
     selected,
     isRefreshing,
@@ -206,6 +212,7 @@ function SortableAccountRow({
     onUpdateLabel,
     onViewError,
     isDragDisabled = false,
+    consumptionWindow = '5h',
 }: SortableRowProps) {
     const { t } = useTranslation();
     const {
@@ -267,7 +274,9 @@ function SortableAccountRow({
                 />
             </td>
             <AccountRowContent
+                index={index}
                 account={account}
+                consumptionWindow={consumptionWindow}
                 isCurrent={isCurrent}
                 activeClients={activeClients}
                 isRefreshing={isRefreshing}
@@ -293,7 +302,9 @@ function SortableAccountRow({
  * 渲染邮箱、配额、最后使用时间和操作按钮等列
  */
 function AccountRowContent({
+    index = 0,
     account,
+    consumptionWindow = '5h',
     isCurrent,
     activeClients,
     isRefreshing,
@@ -322,6 +333,7 @@ function AccountRowContent({
     const isIde = activeClients?.ide_account_id === account.id;
     const isAgy = activeClients?.agy_account_id === account.id;
     const isRowActive = isCurrent || isClassic || isIde || isAgy;
+    const isNearTop = index < 3;
 
     const handleSaveLabel = () => {
         if (onUpdateLabel) {
@@ -515,6 +527,13 @@ function AccountRowContent({
                                 GPT-120B
                             </span>
                         )}
+                        {(account.provider === 'kiro' || account.email?.toLowerCase().includes('kiro')) && (
+                            <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-bold shadow-2xs border border-purple-200/60 dark:border-purple-800/50 cursor-default"
+                            >
+                                KIRO
+                            </span>
+                        )}
                         {/* 标签编辑输入框 */}
                         {isEditingLabel && (
                             <div className="flex items-center gap-1">
@@ -610,6 +629,46 @@ function AccountRowContent({
                 )}
             </td>
 
+            {/* 真实用量与花费列 (5H, 7D, 30D 动态多维看板) */}
+            <td className="px-2.5 py-1.5 align-middle">
+                {(() => {
+                    const c = account.consumption;
+                    const tokens = consumptionWindow === '5h' ? c?.tokens_5h : consumptionWindow === '7d' ? c?.tokens_7d : c?.tokens_30d;
+                    const cost = consumptionWindow === '5h' ? c?.cost_usd_5h : consumptionWindow === '7d' ? c?.cost_usd_7d : c?.cost_usd_30d;
+                    const fmtTokens = (num?: number) => {
+                        if (!num || num <= 0) return '0';
+                        if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+                        if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+                        if (num >= 1_000) return `${(num / 1_000).toFixed(1)}k`;
+                        return `${num}`;
+                    };
+                    const fmtCost = (usd?: number) => {
+                        if (!usd || usd <= 0) return '$0.00';
+                        return `$${usd.toFixed(2)}`;
+                    };
+
+                    return (
+                        <div className="flex flex-col gap-0.5 min-w-[130px] font-mono tabular-nums">
+                            <div className="flex items-center justify-between text-[11px] leading-tight">
+                                <span className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-1">
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold uppercase">
+                                        {consumptionWindow === '5h' ? '5H' : consumptionWindow === '7d' ? '周' : '月'}
+                                    </span>
+                                    <span>{fmtTokens(tokens)}</span>
+                                </span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-[10.5px]">
+                                    {fmtCost(cost)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[9px] text-gray-400 dark:text-gray-500 font-mono tabular-nums">
+                                <span><span className="font-sans text-[8.5px] text-gray-400 dark:text-gray-500 mr-0.5">7D:</span>{fmtTokens(c?.tokens_7d)}</span>
+                                <span><span className="font-sans text-[8.5px] text-gray-400 dark:text-gray-500 mr-0.5">30D:</span>{fmtTokens(c?.tokens_30d)}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </td>
+
             {/* 最后使用时间列 */}
             <td className="px-2 py-1 align-middle">
                 <div className="flex flex-col">
@@ -623,116 +682,187 @@ function AccountRowContent({
             </td>
 
             {/* 操作列 */}
+            {/* 操作 */}
             <td className={cn(
-                "px-1 py-1 sticky right-0 z-10 shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.1)] dark:shadow-[-12px_0_12px_-12px_rgba(255,255,255,0.05)] text-center align-middle",
-                // 动态背景色处理
+                "px-2 py-1.5 sticky right-0 z-10 focus-within:z-30 border-l border-black/[0.04] dark:border-white/[0.04] shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.06)] dark:shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.4)] text-right align-middle",
                 isCurrent
-                    ? "bg-[#f1f6ff] dark:bg-[#1e2330]" // 接近 blue-50/50 的实色
+                    ? "bg-[#f1f6ff] dark:bg-[#1e2330]"
                     : "bg-white dark:bg-base-100",
                 !isCurrent && "group-hover:bg-gray-50 dark:group-hover:bg-base-200"
             )}>
-                <div className="flex flex-wrap items-center justify-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity max-w-[220px] mx-auto">
+                <div className="flex items-center justify-end gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                    {/* 1. 快速切换主操作 */}
                     <button
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 rounded-lg transition-all"
-                        onClick={(e) => { e.stopPropagation(); onViewDetails(); }}
-                        title={t('common.details')}
-                    >
-                        <Info className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                        onClick={(e) => { e.stopPropagation(); onViewDevice(); }}
-                        title={t('accounts.device_fingerprint')}
-                    >
-                        <Fingerprint className="w-3.5 h-3.5" />
-                    </button>
-                    {/* 自定义标签按钮 */}
-                    {onUpdateLabel && (
-                        <button
-                            className={cn(
-                                "p-1.5 rounded-lg transition-all",
-                                account.custom_label
-                                    ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
-                            )}
-                            onClick={(e) => { e.stopPropagation(); setIsEditingLabel(true); }}
-                            title={t('accounts.edit_label', 'Edit Label')}
-                        >
-                            <Tag className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                    <button
-                        className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-lg transition-all ${(isSwitching || isDisabled) ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 cursor-not-allowed' : 'hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
                         onClick={(e) => { e.stopPropagation(); onSwitch('classic'); }}
-                        title={isDisabled ? t('accounts.disabled_tooltip') : (isSwitching ? t('common.loading') : t('accounts.switch_to_classic', '切换到 Antigravity (经典版)'))}
                         disabled={isSwitching || isDisabled}
+                        className={cn(
+                            "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-xs transition-all",
+                            isRowActive
+                                ? "bg-blue-600 text-white shadow-blue-500/20 hover:bg-blue-700"
+                                : "bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-600 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-300",
+                            (isSwitching || isDisabled) && "opacity-50 cursor-not-allowed"
+                        )}
+                        title={isDisabled ? t('accounts.disabled_tooltip') : t('accounts.switch_to_account', '切换到此账号')}
                     >
-                        <ArrowRightLeft className={`w-3.5 h-3.5 ${isSwitching ? 'animate-spin' : ''}`} />
+                        <ArrowRightLeft className={cn("w-3 h-3", isSwitching && "animate-spin")} />
+                        <span>{t('accounts.switch', '切换')}</span>
                     </button>
+
+                    {/* 2. 快速刷新 */}
                     <button
-                        className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-lg transition-all ${(isSwitching || isDisabled) ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 cursor-not-allowed' : 'hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30'}`}
-                        onClick={(e) => { e.stopPropagation(); onSwitch('ide'); }}
-                        title={isDisabled ? t('accounts.disabled_tooltip') : (isSwitching ? t('common.loading') : t('accounts.switch_to_ide', '切换到 Antigravity IDE'))}
-                        disabled={isSwitching || isDisabled}
-                    >
-                        <Repeat2 className={`w-3.5 h-3.5 ${isSwitching ? 'animate-spin' : ''}`} />
-                    </button>
-                    <button
-                        className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-lg transition-all ${(isSwitching || isDisabled) ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 cursor-not-allowed' : 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'}`}
-                        onClick={(e) => { e.stopPropagation(); onSwitch('agy'); }}
-                        title={isDisabled ? t('accounts.disabled_tooltip') : (isSwitching ? t('common.loading') : t('accounts.switch_to_agy', '切换到 Antigravity CLI (agy)'))}
-                        disabled={isSwitching || isDisabled}
-                    >
-                        <Terminal className={`w-3.5 h-3.5 ${isSwitching ? 'animate-spin' : ''}`} />
-                    </button>
-                    {onWarmup && (
-                        <button
-                            className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-lg transition-all ${(isRefreshing || isDisabled) ? 'bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400 cursor-not-allowed' : 'hover:text-orange-500 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30'}`}
-                            onClick={(e) => { e.stopPropagation(); onWarmup(); }}
-                            title={isDisabled ? t('accounts.disabled_tooltip') : (isRefreshing ? t('common.loading') : t('accounts.warmup_this', '预热该账号'))}
-                            disabled={isRefreshing || isDisabled}
-                        >
-                            <Sparkles className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-pulse' : ''}`} />
-                        </button>
-                    )}
-                    <button
-                        className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-lg transition-all ${(isRefreshing || isDisabled) ? 'bg-green-50 dark:bg-green-900/10 text-green-600 dark:text-green-400 cursor-not-allowed' : 'hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'}`}
+                        className={cn(
+                            "p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors",
+                            (isRefreshing || isDisabled) && "opacity-50 cursor-not-allowed"
+                        )}
                         onClick={(e) => { e.stopPropagation(); onRefresh(); }}
                         title={isDisabled ? t('accounts.disabled_tooltip') : (isRefreshing ? t('common.refreshing') : t('common.refresh'))}
                         disabled={isRefreshing || isDisabled}
                     >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
                     </button>
-                    <button
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                        onClick={(e) => { e.stopPropagation(); onExport(); }}
-                        title={t('common.export')}
-                    >
-                        <Download className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                        className={cn(
-                            "p-1.5 rounded-lg transition-all",
-                            account.proxy_disabled
-                                ? "text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
-                                : "text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30"
-                        )}
-                        onClick={(e) => { e.stopPropagation(); onToggleProxy(); }}
-                        title={account.proxy_disabled ? t('accounts.enable_proxy') : t('accounts.disable_proxy')}
-                    >
-                        {account.proxy_disabled ? (
-                            <ToggleRight className="w-3.5 h-3.5" />
-                        ) : (
-                            <ToggleLeft className="w-3.5 h-3.5" />
-                        )}
-                    </button>
-                    <button
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        title={t('common.delete')}
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                    {/* 3. 更多操作下拉菜单 (···) */}
+                    <div className={cn("dropdown dropdown-left", isNearTop ? "dropdown-bottom" : "dropdown-end")} onClick={(e) => e.stopPropagation()}>
+                        <label
+                            tabIndex={0}
+                            className="p-1.5 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer inline-flex items-center justify-center"
+                            title={t('common.more_actions', '更多操作')}
+                        >
+                            <MoreHorizontal className="w-4 h-4" />
+                        </label>
+                        <ul
+                            tabIndex={0}
+                            className="dropdown-content z-50 menu p-1.5 shadow-2xl bg-white/95 dark:bg-[#181920]/95 backdrop-blur-md rounded-xl border border-black/[0.08] dark:border-white/[0.1] w-52 text-xs divide-y divide-gray-100 dark:divide-white/5 max-h-[340px] overflow-y-auto"
+                        >
+                            {/* 客户端切换 */}
+                            <div className="py-1">
+                                <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    {t('accounts.switch_client_title', '切换客户端')}
+                                </div>
+                                <li>
+                                    <button
+                                        onClick={() => onSwitch('classic')}
+                                        disabled={isSwitching || isDisabled}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200"
+                                    >
+                                        <ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />
+                                        <span>Antigravity Classic</span>
+                                        {isClassic && <span className="ml-auto text-[9px] text-blue-600 font-bold">活跃</span>}
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        onClick={() => onSwitch('ide')}
+                                        disabled={isSwitching || isDisabled}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-700 dark:text-gray-200"
+                                    >
+                                        <Repeat2 className="w-3.5 h-3.5 text-purple-500" />
+                                        <span>Antigravity IDE</span>
+                                        {isIde && <span className="ml-auto text-[9px] text-purple-600 font-bold">活跃</span>}
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        onClick={() => onSwitch('agy')}
+                                        disabled={isSwitching || isDisabled}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-gray-700 dark:text-gray-200"
+                                    >
+                                        <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+                                        <span>AGY CLI</span>
+                                        {isAgy && <span className="ml-auto text-[9px] text-emerald-600 font-bold">活跃</span>}
+                                    </button>
+                                </li>
+                            </div>
+
+                            {/* 账户管理 */}
+                            <div className="py-1">
+                                <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    {t('accounts.management_title', '账户与工具')}
+                                </div>
+                                <li>
+                                    <button
+                                        onClick={() => onViewDetails()}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                    >
+                                        <Info className="w-3.5 h-3.5 text-sky-500" />
+                                        <span>{t('common.details', '账户详情')}</span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        onClick={() => onViewDevice()}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                    >
+                                        <Fingerprint className="w-3.5 h-3.5 text-indigo-500" />
+                                        <span>{t('accounts.device_fingerprint', '设备指纹')}</span>
+                                    </button>
+                                </li>
+                                {onUpdateLabel && (
+                                    <li>
+                                        <button
+                                            onClick={() => setIsEditingLabel(true)}
+                                            className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                        >
+                                            <Tag className="w-3.5 h-3.5 text-orange-500" />
+                                            <span>{t('accounts.edit_label', '自定义标签')}</span>
+                                        </button>
+                                    </li>
+                                )}
+                                {onWarmup && (
+                                    <li>
+                                        <button
+                                            onClick={() => onWarmup()}
+                                            disabled={isRefreshing || isDisabled}
+                                            className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                        >
+                                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                            <span>{t('accounts.warmup', '配额预热')}</span>
+                                        </button>
+                                    </li>
+                                )}
+                                <li>
+                                    <button
+                                        onClick={() => onToggleProxy()}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                    >
+                                        {account.proxy_disabled ? (
+                                            <>
+                                                <ToggleLeft className="w-3.5 h-3.5 text-gray-400" />
+                                                <span>{t('accounts.enable_proxy', '启用反代调度')}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ToggleRight className="w-3.5 h-3.5 text-emerald-500" />
+                                                <span>{t('accounts.disable_proxy', '暂停反代调度')}</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        onClick={() => onExport()}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                    >
+                                        <Download className="w-3.5 h-3.5 text-gray-500" />
+                                        <span>{t('common.export', '导出凭据')}</span>
+                                    </button>
+                                </li>
+                            </div>
+
+                            {/* 危险区 */}
+                            <div className="pt-1">
+                                <li>
+                                    <button
+                                        onClick={() => onDelete()}
+                                        className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 dark:text-rose-400 font-medium"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>{t('common.delete', '删除账户')}</span>
+                                    </button>
+                                </li>
+                            </div>
+                        </ul>
+                    </div>
                 </div>
             </td>
         </>
@@ -771,6 +901,7 @@ function AccountTable({
     const { t } = useTranslation();
 
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [consumptionWindow, setConsumptionWindow] = useState<'5h' | '7d' | '30d'>('5h');
     // 排序状态配置: 支持按配额重置时间 (reset_time) 或最后使用时间 (last_used) 排序
     const [sortConfig, setSortConfig] = useState<{
         key: 'reset_time' | 'last_used' | null;
@@ -906,6 +1037,28 @@ function AccountTable({
                                     )}
                                 </button>
                             </th>
+                            <th className="px-2 py-1 text-left rtl:text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[150px] whitespace-nowrap">
+                                <div className="flex items-center justify-between gap-1.5">
+                                    <span>{t('accounts.table.consumption', '消费与花费')}</span>
+                                    <div className="inline-flex items-center bg-gray-200/60 dark:bg-white/10 rounded-md p-0.5 text-[9px] font-mono leading-none">
+                                        {(['5h', '7d', '30d'] as const).map(w => (
+                                            <button
+                                                key={w}
+                                                type="button"
+                                                onClick={() => setConsumptionWindow(w)}
+                                                className={cn(
+                                                    "px-1.5 py-0.5 rounded transition-all",
+                                                    consumptionWindow === w
+                                                        ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 font-bold shadow-xs"
+                                                        : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
+                                                )}
+                                            >
+                                                {w === '5h' ? '5H' : w === '7d' ? '周' : '月'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </th>
                             <th className="px-2 py-1 text-left rtl:text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-[90px] whitespace-nowrap">
                                 <button
                                     type="button"
@@ -924,13 +1077,14 @@ function AccountTable({
                                     )}
                                 </button>
                             </th>
-                            <th className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap sticky right-0 w-[220px] bg-gray-50 dark:bg-base-200 z-20 shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.1)] dark:shadow-[-12px_0_12px_-12px_rgba(255,255,255,0.05)] text-center">{t('accounts.table.actions')}</th>
+                            <th className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap sticky right-0 w-[110px] bg-gray-50 dark:bg-base-200 z-20 shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.1)] dark:shadow-[-12px_0_12px_-12px_rgba(255,255,255,0.05)] text-center">{t('accounts.table.actions')}</th>
                         </tr >
                     </thead >
                     <SortableContext items={accountIds} strategy={verticalListSortingStrategy}>
                         <tbody className="divide-y divide-gray-100 dark:divide-base-200">
-                            {sortedAccounts.map((account) => (
+                            {sortedAccounts.map((account, index) => (
                                 <SortableAccountRow
+                                    index={index}
                                     key={account.id}
                                     account={account}
                                     selected={selectedIds.has(account.id)}
@@ -951,6 +1105,7 @@ function AccountTable({
                                     onUpdateLabel={onUpdateLabel ? (label: string) => onUpdateLabel(account.id, label) : undefined}
                                     onViewError={() => onViewError(account.id)}
                                     isDragDisabled={isSortingActive}
+                                    consumptionWindow={consumptionWindow}
                                 />
                             ))}
                         </tbody>
@@ -993,6 +1148,7 @@ function AccountTable({
                                         onToggleProxy={() => { }}
                                         isDisabled={Boolean(activeAccount.disabled)}
                                         onViewError={() => { }}
+                                        consumptionWindow={consumptionWindow}
                                     />
                                 </tr>
                             </tbody>

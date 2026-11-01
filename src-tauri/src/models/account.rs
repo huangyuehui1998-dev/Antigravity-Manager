@@ -32,12 +32,28 @@ pub struct LiveLimitStatus {
     pub message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AccountConsumption {
+    pub tokens_5h: i64,
+    pub cost_usd_5h: f64,
+    pub tokens_7d: i64,
+    pub cost_usd_7d: f64,
+    pub tokens_30d: i64,
+    pub cost_usd_30d: f64,
+}
+
 /// 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub id: String,
     pub email: String,
     pub name: Option<String>,
+    /// 账号类型提供商 (例如 "google", "kiro", "cursor")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// 多周期真实用量与花费统计 (5H, 7D, 30D)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consumption: Option<AccountConsumption>,
     /// Lower values are selected first when assigning a new proxy account.
     #[serde(
         default = "default_priority",
@@ -114,6 +130,8 @@ impl Account {
             id,
             email,
             name: None,
+            provider: Some("google".to_string()),
+            consumption: None,
             priority: default_priority(),
             token,
             device_profile: None,

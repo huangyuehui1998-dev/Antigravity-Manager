@@ -22,8 +22,19 @@ export interface Account {
     validation_blocked_until?: number;
     validation_blocked_reason?: string;
     validation_url?: string;
+    provider?: 'google' | 'kiro' | string;
+    consumption?: AccountConsumption;
     created_at: number;
     last_used: number;
+}
+
+export interface AccountConsumption {
+    tokens_5h: number;
+    cost_usd_5h: number;
+    tokens_7d: number;
+    cost_usd_7d: number;
+    tokens_30d: number;
+    cost_usd_30d: number;
 }
 
 export interface ActiveClientsStatus {

@@ -460,21 +460,24 @@ impl ProxyMonitor {
     }
 
     pub async fn log_request(&self, log: ProxyRequestLog) {
-        if let (Some(account), Some(input), Some(output)) =
-            (&log.account_email, log.input_tokens, log.output_tokens)
-        {
-            let model = log.model.clone().unwrap_or_else(|| "unknown".to_string());
-            let account = account.clone();
-            let cached = log.cached_tokens.unwrap_or(0);
-            let reasoning = log.reasoning_tokens.unwrap_or(0);
-            tokio::task::spawn_blocking(move || {
-                if let Err(e) = crate::modules::token_stats::record_usage(
-                    &account, &model, input, output, cached, reasoning,
-                ) {
-                    tracing::debug!("Failed to record token stats: {}", e);
-                }
-            });
-        }
+        let account = log
+            .account_email
+            .clone()
+            .or_else(|| log.username.clone())
+            .unwrap_or_else(|| "default_proxy".to_string());
+        let model = log.model.clone().unwrap_or_else(|| "gemini-3.8-flash".to_string());
+        let input = log.input_tokens.unwrap_or(1);
+        let output = log.output_tokens.unwrap_or(1);
+        let cached = log.cached_tokens.unwrap_or(0);
+        let reasoning = log.reasoning_tokens.unwrap_or(0);
+
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = crate::modules::token_stats::record_usage(
+                &account, &model, input, output, cached, reasoning,
+            ) {
+                tracing::debug!("Failed to record token stats: {}", e);
+            }
+        });
 
         if !self.is_enabled() {
             return;

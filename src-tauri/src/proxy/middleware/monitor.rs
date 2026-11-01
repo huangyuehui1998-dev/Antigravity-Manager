@@ -1830,7 +1830,7 @@ pub async fn monitor_middleware(
             }
 
             // Fallback input token estimation prefers the transit (upstream) body
-            if log.input_tokens.is_none() {
+            if log.input_tokens.is_none() || log.input_tokens == Some(0) {
                 let estimated = log
                     .upstream_request_body
                     .as_ref()
@@ -1843,6 +1843,26 @@ pub async fn monitor_middleware(
                     .unwrap_or(0);
                 if estimated > 0 {
                     log.input_tokens = Some(estimated);
+                } else if log.status < 400 {
+                    log.input_tokens = Some(1);
+                }
+            }
+
+            // Fallback output token estimation from response_body
+            if log.output_tokens.is_none() || log.output_tokens == Some(0) {
+                let estimated = log
+                    .response_body
+                    .as_ref()
+                    .map(|body| {
+                        crate::proxy::mappers::context_manager::estimate_raw_tokens_from_payload(
+                            body,
+                        )
+                    })
+                    .unwrap_or(0);
+                if estimated > 0 {
+                    log.output_tokens = Some(estimated);
+                } else if log.status < 400 {
+                    log.output_tokens = Some(1);
                 }
             }
 
@@ -1944,7 +1964,7 @@ pub async fn monitor_middleware(
                 }
 
                 // Fallback input token estimation prefers the transit (upstream) body
-                if log.input_tokens.is_none() {
+                if log.input_tokens.is_none() || log.input_tokens == Some(0) {
                     let estimated = log
                         .upstream_request_body
                         .as_ref()
@@ -1955,6 +1975,24 @@ pub async fn monitor_middleware(
                         .unwrap_or(0);
                     if estimated > 0 {
                         log.input_tokens = Some(estimated);
+                    } else if log.status < 400 {
+                        log.input_tokens = Some(1);
+                    }
+                }
+
+                // Fallback output token estimation from response_body
+                if log.output_tokens.is_none() || log.output_tokens == Some(0) {
+                    let estimated = log
+                        .response_body
+                        .as_ref()
+                        .map(|body| {
+                            crate::proxy::mappers::context_manager::estimate_raw_tokens_from_payload(body)
+                        })
+                        .unwrap_or(0);
+                    if estimated > 0 {
+                        log.output_tokens = Some(estimated);
+                    } else if log.status < 400 {
+                        log.output_tokens = Some(1);
                     }
                 }
 

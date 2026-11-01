@@ -10,7 +10,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 const ANALYTICS_DB_NAME: &str = "analytics_hub.db";
-const DEFAULT_USD_TO_CNY: f64 = 7.22;
+pub const DEFAULT_USD_TO_CNY: f64 = 7.22;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PricingEntry {
@@ -630,6 +630,7 @@ pub fn refresh_all_analytics() -> Result<(usize, usize), String> {
     let ag_count = crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing)?;
     let cur_count = sync_cursor_data(&mut conn, &pricing)?;
     let codex_count = sync_codex_data(&mut conn, &pricing)?;
+    let _kiro_count = crate::modules::kiro_scanner::sync_kiro_data(&mut conn, &pricing).unwrap_or(0);
 
     // 重新计算每日聚合持久表
     conn.execute_batch(
