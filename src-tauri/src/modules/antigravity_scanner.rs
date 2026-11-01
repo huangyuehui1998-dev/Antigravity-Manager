@@ -499,35 +499,41 @@ pub fn sync_antigravity_data(
             )
             .unwrap_or(0);
         if unhealed_count > 0 {
-            if let Ok(mut stmt) = ts_conn.prepare("SELECT id, timestamp FROM token_usage WHERE account_email NOT LIKE '%@%'") {
-                if let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))) {
-                    let to_heal: Vec<(i64, i64)> = rows.flatten().collect();
-                    if let Ok(tx) = ts_conn.transaction() {
-                        for (row_id, ts_sec) in to_heal {
-                            let email = attributor.resolve(ts_sec * 1000);
-                            let _ = tx.execute("UPDATE token_usage SET account_email = ?1 WHERE id = ?2", params![email, row_id]);
-                        }
-                        let _ = tx.execute("DELETE FROM token_stats_hourly", []);
-                        let _ = tx.execute(
-                            "INSERT INTO token_stats_hourly (
-                                hour_bucket, account_email, total_input_tokens, total_output_tokens,
-                                total_cached_tokens, total_tokens, request_count, total_reasoning_tokens
-                            )
-                            SELECT 
-                                strftime('%Y-%m-%d %H:00', timestamp, 'unixepoch', 'localtime') AS hb,
-                                account_email,
-                                SUM(input_tokens),
-                                SUM(output_tokens),
-                                SUM(cached_tokens),
-                                SUM(total_tokens),
-                                COUNT(*),
-                                SUM(reasoning_tokens)
-                            FROM token_usage
-                            GROUP BY hb, account_email",
-                            [],
-                        );
-                        let _ = tx.commit();
+            let to_heal: Vec<(i64, i64)> = {
+                if let Ok(mut stmt) = ts_conn.prepare("SELECT id, timestamp FROM token_usage WHERE account_email NOT LIKE '%@%'") {
+                    stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
+                        .map(|rows| rows.flatten().collect())
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                }
+            };
+            if !to_heal.is_empty() {
+                if let Ok(tx) = ts_conn.transaction() {
+                    for (row_id, ts_sec) in to_heal {
+                        let email = attributor.resolve(ts_sec * 1000);
+                        let _ = tx.execute("UPDATE token_usage SET account_email = ?1 WHERE id = ?2", params![email, row_id]);
                     }
+                    let _ = tx.execute("DELETE FROM token_stats_hourly", []);
+                    let _ = tx.execute(
+                        "INSERT INTO token_stats_hourly (
+                            hour_bucket, account_email, total_input_tokens, total_output_tokens,
+                            total_cached_tokens, total_tokens, request_count, total_reasoning_tokens
+                        )
+                        SELECT 
+                            strftime('%Y-%m-%d %H:00', timestamp, 'unixepoch', 'localtime') AS hb,
+                            account_email,
+                            SUM(input_tokens),
+                            SUM(output_tokens),
+                            SUM(cached_tokens),
+                            SUM(total_tokens),
+                            COUNT(*),
+                            SUM(reasoning_tokens)
+                        FROM token_usage
+                        GROUP BY hb, account_email",
+                        [],
+                    );
+                    let _ = tx.commit();
                 }
             }
         }
@@ -541,16 +547,22 @@ pub fn sync_antigravity_data(
         )
         .unwrap_or(0);
     if unhealed_ah > 0 {
-        if let Ok(mut stmt) = dest_conn.prepare("SELECT id, timestamp FROM unified_token_usage WHERE source = 'Antigravity' AND (account_id IS NULL OR account_id NOT LIKE '%@%')") {
-            if let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))) {
-                let to_heal: Vec<(i64, i64)> = rows.flatten().collect();
-                if let Ok(tx) = dest_conn.transaction() {
-                    for (row_id, ts_ms) in to_heal {
-                        let email = attributor.resolve(ts_ms);
-                        let _ = tx.execute("UPDATE unified_token_usage SET account_id = ?1 WHERE id = ?2", params![email, row_id]);
-                    }
-                    let _ = tx.commit();
+        let to_heal: Vec<(i64, i64)> = {
+            if let Ok(mut stmt) = dest_conn.prepare("SELECT id, timestamp FROM unified_token_usage WHERE source = 'Antigravity' AND (account_id IS NULL OR account_id NOT LIKE '%@%')") {
+                stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
+                    .map(|rows| rows.flatten().collect())
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            }
+        };
+        if !to_heal.is_empty() {
+            if let Ok(tx) = dest_conn.transaction() {
+                for (row_id, ts_ms) in to_heal {
+                    let email = attributor.resolve(ts_ms);
+                    let _ = tx.execute("UPDATE unified_token_usage SET account_id = ?1 WHERE id = ?2", params![email, row_id]);
                 }
+                let _ = tx.commit();
             }
         }
     }
