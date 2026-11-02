@@ -129,7 +129,7 @@ export default function MiniView() {
     const [copied, setCopied] = useState(false);
     // 默认是不停留的（Popover 模式），只有用户显式点击图钉才保持常驻悬浮
     const [isPinned, setIsPinned] = useState(false);
-    const [appVersion, setAppVersion] = useState<string>('5.1.0');
+    const [appVersion, setAppVersion] = useState<string>('5.2.0');
 
     useEffect(() => {
         if (isTauri()) {
@@ -139,7 +139,7 @@ export default function MiniView() {
                 }).catch(() => {});
             });
         } else {
-            setAppVersion('5.1.0');
+            setAppVersion('5.2.0');
         }
     }, []);
 
