@@ -111,15 +111,17 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
     fields
 }
 
-/// 读取 Antigravity 会话标题索引映射
+/// 读取 Antigravity 会话标题索引映射 (全域五级自适应感知多路径)
 pub fn get_antigravity_titles() -> HashMap<String, String> {
     let mut titles = HashMap::new();
-    if let Some(home) = dirs::home_dir() {
-        let summary_db = home.join(".gemini").join("antigravity").join("conversation_summaries.db");
+    let discovered_dirs = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
+    for base_dir in &discovered_dirs {
+        let summary_db = base_dir.join("conversation_summaries.db");
         if summary_db.exists() {
             let uri = format!("file:{}?mode=ro", summary_db.to_string_lossy());
             if let Ok(conn) = Connection::open_with_flags(&uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI) {
                 let _ = conn.pragma_update(None, "query_only", "ON");
+                let _ = conn.busy_timeout(std::time::Duration::from_millis(2000));
                 if let Ok(mut stmt) = conn.prepare("SELECT conversation_id, title, preview FROM conversation_summaries") {
                     if let Ok(rows) = stmt.query_map([], |row| {
                         let cid: String = row.get(0)?;
@@ -131,7 +133,7 @@ pub fn get_antigravity_titles() -> HashMap<String, String> {
                         Ok((cid, name))
                     }) {
                         for item in rows.flatten() {
-                            titles.insert(item.0, item.1);
+                            titles.entry(item.0).or_insert(item.1);
                         }
                     }
                 }
@@ -262,25 +264,28 @@ pub fn sync_antigravity_data(
     dest_conn: &mut Connection,
     pricing_map: &HashMap<String, PricingEntry>,
 ) -> Result<usize, String> {
-    let home = match dirs::home_dir() {
-        Some(h) => h,
-        None => return Ok(0),
-    };
-
     let titles = get_antigravity_titles();
-    let conv_dirs = [
-        home.join(".gemini").join("antigravity").join("conversations"),
-        home.join(".gemini").join("antigravity-ide").join("conversations"),
-    ];
+    let discovered_dirs = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
 
     let mut db_paths: Vec<PathBuf> = Vec::new();
-    for d in &conv_dirs {
-        if d.exists() {
-            if let Ok(entries) = fs::read_dir(d) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.extension().map_or(false, |ext| ext == "db") {
-                        db_paths.push(p);
+    let mut seen_paths = std::collections::HashSet::new();
+
+    for base_dir in &discovered_dirs {
+        let candidates = [
+            base_dir.join("conversations"),
+            base_dir.clone(),
+        ];
+        for d in &candidates {
+            if d.exists() && d.is_dir() {
+                if let Ok(entries) = fs::read_dir(d) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.extension().map_or(false, |ext| ext == "db") {
+                            let fname = p.file_name().and_then(|f| f.to_str()).unwrap_or("");
+                            if fname != "conversation_summaries.db" && seen_paths.insert(p.clone()) {
+                                db_paths.push(p);
+                            }
+                        }
                     }
                 }
             }
@@ -419,10 +424,14 @@ pub fn sync_antigravity_data(
                         .map(|p| (p.input_per_m, p.output_per_m, p.cache_read_per_m))
                         .unwrap_or((0.75, 3.75, 0.075));
 
-                    let cost_usd = (inp as f64 / 1_000_000.0) * in_rate
-                        + (cr as f64 / 1_000_000.0) * cache_rate
-                        + (out as f64 / 1_000_000.0) * out_rate;
-                    let cost_cny = cost_usd * DEFAULT_USD_TO_CNY;
+                    let in_nano = (in_rate * 1_000_000_000.0).round() as u64;
+                    let out_nano = (out_rate * 1_000_000_000.0).round() as u64;
+                    let cr_nano = (cache_rate * 1_000_000_000.0).round() as u64;
+                    let cost_nano = crate::modules::nano_currency::NanoUsd::from_tokens_checked(inp as u64, in_nano)
+                        .saturating_add(crate::modules::nano_currency::NanoUsd::from_tokens_checked(cr as u64, cr_nano))
+                        .saturating_add(crate::modules::nano_currency::NanoUsd::from_tokens_checked(out as u64, out_nano));
+                    let cost_usd = cost_nano.to_usd_f64();
+                    let cost_cny = cost_nano.to_cny_f64(DEFAULT_USD_TO_CNY);
 
                     let timestamp = step_timestamps.get(&idx).copied().unwrap_or(mtime);
                     let attributed_email = attributor.resolve(timestamp);

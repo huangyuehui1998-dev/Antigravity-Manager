@@ -724,6 +724,12 @@ pub fn run() {
             commands::get_financial_chart_data,
             commands::get_financial_usage_details,
             commands::refresh_financial_analytics,
+            commands::get_discovered_antigravity_paths,
+            commands::add_custom_antigravity_path,
+            commands::get_official_benchmark_specs,
+            commands::get_model_health_diagnostics,
+            commands::run_stealth_canary_probe,
+            commands::export_forensic_dossier,
             // Account management commands
             commands::list_accounts,
             commands::add_account,

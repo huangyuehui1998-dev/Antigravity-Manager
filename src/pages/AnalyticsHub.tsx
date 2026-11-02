@@ -4,6 +4,7 @@ import { Tabs } from 'antd';
 import FinancialDashboard from './FinancialDashboard';
 import TokenStats from './TokenStats';
 import Monitor from './Monitor';
+import ModelDiagnosticsDashboard from '../components/analytics/ModelDiagnosticsDashboard';
 
 export const AnalyticsHub: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,6 +25,7 @@ export const AnalyticsHub: React.FC = () => {
           items={[
             { key: 'financial', label: '💰 商业财务价值看板' },
             { key: 'tokens', label: '📊 模型用量画像统计' },
+            { key: 'diagnostics', label: '⚡ 模型真伪评判与实时流速遥测' },
             { key: 'logs', label: '📝 全电脑调用流水日志' },
           ]}
         />
@@ -36,6 +38,9 @@ export const AnalyticsHub: React.FC = () => {
         </div>
         <div className={`h-full w-full ${currentTab === 'tokens' ? 'block' : 'hidden'}`}>
           <TokenStats />
+        </div>
+        <div className={`h-full w-full ${currentTab === 'diagnostics' ? 'block' : 'hidden'}`}>
+          <ModelDiagnosticsDashboard />
         </div>
         <div className={`h-full w-full ${currentTab === 'logs' ? 'block' : 'hidden'}`}>
           <Monitor />
