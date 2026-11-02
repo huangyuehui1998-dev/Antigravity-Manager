@@ -4,7 +4,7 @@
 use rusqlite::{params, Connection, OpenFlags};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use crate::modules::analytics_hub::{normalize_model_name, PricingEntry};
 
 const DEFAULT_USD_TO_CNY: f64 = 7.22;
