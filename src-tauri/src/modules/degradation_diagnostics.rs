@@ -68,9 +68,11 @@ function transition(state: State, action: Action): State {{
 
     /// 校验模型回答的逻辑准确性与思维深度
     pub fn verify_response(response_text: &str, thinking_tokens: u32, is_thinking_model: bool) -> (bool, bool) {
-        let is_logic_correct = response_text.contains(r#""status":"resolved""#)
-            && response_text.contains(r#""retryCount":3"#)
-            && response_text.contains(r#""flag":true"#);
+        // 过滤全部空白字符以容错多格式 JSON（空格、换行、缩进等）
+        let compact_text: String = response_text.chars().filter(|c| !c.is_whitespace()).collect();
+        let is_logic_correct = compact_text.contains(r#""status":"resolved""#)
+            && compact_text.contains(r#""retryCount":3"#)
+            && compact_text.contains(r#""flag":true"#);
 
         let is_thinking_adequate = if is_thinking_model {
             thinking_tokens >= 200
@@ -89,7 +91,7 @@ pub fn calculate_expected_ttft(prompt_tokens: u64, cached_tokens: u64, is_pro_mo
     let k_cached = 0.003; // ms per token
 
     let uncached = prompt_tokens.saturating_sub(cached_tokens) as f64;
-    let cached = cached_tokens as f64;
+    let cached = (cached_tokens.min(prompt_tokens)) as f64;
 
     let compute_ms = (uncached * k_uncached) + (cached * k_cached);
     (ttft_base as f64 + net_rtt_ms as f64 + compute_ms).round() as u64

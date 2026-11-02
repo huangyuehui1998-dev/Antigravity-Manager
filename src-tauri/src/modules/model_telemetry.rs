@@ -43,47 +43,51 @@ impl UniversalSseDecoder {
             self.buffer.extend_from_slice(chunk);
         }
 
-        // 查找 \n\n 或 \r\n\r\n 双换行边界
-        let boundary = self.find_boundary();
-        if boundary.is_none() {
-            return Ok(None);
-        }
+        // 循环提取已收到的完整 SSE 帧，避免心跳/空帧导致后续真实数据帧滞后
+        loop {
+            // 查找 \n\n 或 \r\n\r\n 双换行边界
+            let boundary = self.find_boundary();
+            if boundary.is_none() {
+                return Ok(None);
+            }
 
-        let (delim_pos, delim_len) = boundary.unwrap();
-        let frame_bytes = self.buffer.split_to(delim_pos);
-        if self.buffer.len() >= delim_len {
-            let _ = self.buffer.split_to(delim_len);
-        }
+            let (delim_pos, delim_len) = boundary.unwrap();
+            let frame_bytes = self.buffer.split_to(delim_pos);
+            if self.buffer.len() >= delim_len {
+                let _ = self.buffer.split_to(delim_len);
+            }
 
-        // 提取有效 data: 载荷，静默过滤心跳注释行 (以 : 开头)
-        let mut data_payload = String::new();
-        if let Ok(text) = std::str::from_utf8(&frame_bytes) {
-            for line in text.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with(':') {
-                    // W3C SSE Keep-Alive 注释行，直接静默跳过
-                    continue;
-                }
-                if let Some(rest) = line.strip_prefix("data:") {
-                    let r = rest.trim();
-                    if r == "[DONE]" {
-                        return Ok(Some(ParsedChunkMeta {
-                            is_final: true,
-                            ..Default::default()
-                        }));
+            // 提取有效 data: 载荷，静默过滤心跳注释行 (以 : 开头)
+            let mut data_payload = String::new();
+            if let Ok(text) = std::str::from_utf8(&frame_bytes) {
+                for line in text.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with(':') {
+                        // W3C SSE Keep-Alive 注释行，直接静默跳过
+                        continue;
                     }
-                    data_payload.push_str(r);
+                    if let Some(rest) = line.strip_prefix("data:") {
+                        let r = rest.trim();
+                        if r == "[DONE]" {
+                            return Ok(Some(ParsedChunkMeta {
+                                is_final: true,
+                                ..Default::default()
+                            }));
+                        }
+                        data_payload.push_str(r);
+                    }
                 }
             }
-        }
 
-        if data_payload.is_empty() {
-            return Ok(None);
-        }
+            if data_payload.is_empty() {
+                // 心跳或空行帧，继续循环消费缓冲区中的下一帧
+                continue;
+            }
 
-        // JSON 反序列化与多厂商字段规范提取
-        let meta = Self::parse_json_payload(&data_payload);
-        Ok(meta)
+            // JSON 反序列化与多厂商字段规范提取
+            let meta = Self::parse_json_payload(&data_payload);
+            return Ok(meta);
+        }
     }
 
     fn find_boundary(&self) -> Option<(usize, usize)> {

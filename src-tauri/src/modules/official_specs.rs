@@ -19,9 +19,22 @@ pub struct OfficialModelSpec {
 
 pub fn get_official_specs() -> Vec<OfficialModelSpec> {
     vec![
+        // 优先匹配包含 thinking 的特殊推演模型，避免被通用 flash 贪婪模式遮蔽
+        OfficialModelSpec {
+            display_name: "Gemini 2.0 Flash Thinking".to_string(),
+            exact_id_pattern: "gemini-2.0-flash-thinking.*|gemini-.*-thinking.*".to_string(),
+            nominal_tps_min: 80.0,
+            nominal_tps_max: 110.0,
+            nominal_ttft_ms_p50: 550,
+            nominal_ttft_ms_p99: 1200,
+            max_context_window: 1_048_576,
+            supports_thinking: true,
+            min_thinking_ratio: 0.35,
+            description: "具备端到端思维链的强逻辑推演模型，标称思考链占比 > 35%".to_string(),
+        },
         OfficialModelSpec {
             display_name: "Gemini 3.8 Flash".to_string(),
-            exact_id_pattern: "gemini-3.8-flash.*|gemini-2.0-flash.*|gemini-1.5-flash.*".to_string(),
+            exact_id_pattern: "gemini-3.8-flash.*|gemini-2.0-flash(?!-thinking).*|gemini-1.5-flash.*".to_string(),
             nominal_tps_min: 120.0,
             nominal_tps_max: 155.0,
             nominal_ttft_ms_p50: 450,
@@ -42,18 +55,6 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             supports_thinking: false,
             min_thinking_ratio: 0.0,
             description: "谷歌高精度推理与超长上下文模型，标称吞吐 60~85 T/s".to_string(),
-        },
-        OfficialModelSpec {
-            display_name: "Gemini 2.0 Flash Thinking".to_string(),
-            exact_id_pattern: "gemini-2.0-flash-thinking.*|.*thinking.*".to_string(),
-            nominal_tps_min: 80.0,
-            nominal_tps_max: 110.0,
-            nominal_ttft_ms_p50: 550,
-            nominal_ttft_ms_p99: 1200,
-            max_context_window: 1_048_576,
-            supports_thinking: true,
-            min_thinking_ratio: 0.35,
-            description: "具备端到端思维链的强逻辑推演模型，标称思考链占比 > 35%".to_string(),
         },
         OfficialModelSpec {
             display_name: "Claude 3.7 Sonnet".to_string(),

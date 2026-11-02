@@ -78,6 +78,7 @@ impl DiscoveryEngine {
         for var in env_vars {
             if let Ok(val) = std::env::var(var) {
                 let p = PathBuf::from(val);
+                candidates.insert(p.clone());
                 candidates.insert(p.join(".gemini").join("antigravity"));
                 candidates.insert(p.join("antigravity"));
             }
@@ -171,9 +172,9 @@ impl DiscoveryEngine {
                 paths = serde_json::from_str::<Vec<String>>(&content).unwrap_or_default();
             }
         }
-        let str_path = path.to_string_lossy().to_string();
-        if !paths.contains(&str_path) {
-            paths.push(str_path);
+        let normalized_path = path.to_string_lossy().replace('/', "\\").trim_end_matches('\\').to_string();
+        if !paths.iter().any(|p| p.replace('/', "\\").trim_end_matches('\\') == normalized_path) {
+            paths.push(normalized_path);
             let json = serde_json::to_string_pretty(&paths).map_err(|e| e.to_string())?;
             fs::write(manifest_path, json).map_err(|e| e.to_string())?;
         }

@@ -111,14 +111,24 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
     fields
 }
 
+fn make_sqlite_ro_uri(path: &Path) -> String {
+    let raw = path.to_string_lossy();
+    let encoded = raw.replace('#', "%23").replace('?', "%3F");
+    format!("file:{}?mode=ro", encoded)
+}
+
 /// 读取 Antigravity 会话标题索引映射 (全域五级自适应感知多路径)
 pub fn get_antigravity_titles() -> HashMap<String, String> {
-    let mut titles = HashMap::new();
     let discovered_dirs = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
-    for base_dir in &discovered_dirs {
+    get_antigravity_titles_with_dirs(&discovered_dirs)
+}
+
+pub fn get_antigravity_titles_with_dirs(discovered_dirs: &[PathBuf]) -> HashMap<String, String> {
+    let mut titles = HashMap::new();
+    for base_dir in discovered_dirs {
         let summary_db = base_dir.join("conversation_summaries.db");
         if summary_db.exists() {
-            let uri = format!("file:{}?mode=ro", summary_db.to_string_lossy());
+            let uri = make_sqlite_ro_uri(&summary_db);
             if let Ok(conn) = Connection::open_with_flags(&uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI) {
                 let _ = conn.pragma_update(None, "query_only", "ON");
                 let _ = conn.busy_timeout(std::time::Duration::from_millis(2000));
@@ -264,8 +274,8 @@ pub fn sync_antigravity_data(
     dest_conn: &mut Connection,
     pricing_map: &HashMap<String, PricingEntry>,
 ) -> Result<usize, String> {
-    let titles = get_antigravity_titles();
     let discovered_dirs = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
+    let titles = get_antigravity_titles_with_dirs(&discovered_dirs);
 
     let mut db_paths: Vec<PathBuf> = Vec::new();
     let mut seen_paths = std::collections::HashSet::new();
@@ -330,7 +340,7 @@ pub fn sync_antigravity_data(
         let cid = db_path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
         let conv_title = titles.get(&cid).cloned().unwrap_or_else(|| "未命名会话".to_string());
 
-        let uri = format!("file:{}?mode=ro", db_path.to_string_lossy());
+        let uri = make_sqlite_ro_uri(&db_path);
         let src_conn = match Connection::open_with_flags(
             &uri,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
