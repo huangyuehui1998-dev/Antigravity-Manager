@@ -12,7 +12,7 @@
     *   **v5.1.0 (2026-11-01)**:
         -   **[Windows DirectWrite CJK 汉字排版冲突修复]**: 针对 Chromium/WebView2 在父级容器启用 `font-mono tabular-nums` 时导致全角中文字宽被西文半角压缩 50% 产生重叠挤压的 bug，完成文字与数字物理隔离，文字与标签严格锁定 `font-sans font-medium`，数字倒计时与百分比精确使用 `font-mono tabular-nums`，文字舒展规整。(Fixes #3742)
         -   **[账号列表操作列 3 级现代胶囊交互重构]**: 将原本双排堆叠的 11 个 14px 微型杂乱图标重构为高频主行动 `[切换]`、快捷 `[刷新]` 与沉浸式上下文更多菜单 `[···]`，列宽节省 50%（从 220px 收窄至 110px），并在菜单底部对删除等高危操作加入红色防误触二级确认。(Fixes #3743)
-        -   **[Kiro 账号原生扫描与统一分析湖同步]**: 新增 `kiro_scanner` 原生 Protobuf 与 SQLite 会话分析引擎，无缝接入 `analytics_hub.db` 与 `token_stats.db`，实现多平台 5H 滚动、7D 与 30D 真实消费量与花费统计的统一视图。(Fixes #3744)
+        -   **[Kiro 账号本地 Credit 监控同步]**: 新增 `kiro_scanner` 本地 `kiro.kiroAgent` usageState Credit 快照同步（对齐 UsageBar/PaceBar；非 Protobuf 会话引擎），无缝写入 `kiro_usage_snapshots`，实现真实 Credit 额度水位的精准监控。(Fixes #3744)
         -   **[跨设备数据无损承接与便携随身免安装发布套件]**: 推出免安装绿色便携运行模式与全自动数据迁移助手脚本，支持在不同电脑间即插即用，或一键导入/导出 `%USERPROFILE%\.antigravity_tools`，做到账号、配额、历史记录 100% 无损迁移。
         -   **[Pre-push 安全白盒审计与隐私防线加固]**: 强化 `.gitignore` 过滤，严禁任何个人账号凭据、密钥或数据库文件误入版本库。
     *   **v5.0.0 (2026-10-24)**:

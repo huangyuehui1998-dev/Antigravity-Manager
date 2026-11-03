@@ -76,7 +76,8 @@ testJson/
 # Credentials, database snapshots, and account exports (V6.0 Security Hardening)
 antigravity_accounts_*.json
 accounts.json*
-accounts/
+/accounts/
+!src/components/accounts/
 *.agpack
 *.vscdb
 *.vscdb*

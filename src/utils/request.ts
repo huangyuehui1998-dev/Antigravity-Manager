@@ -199,6 +199,7 @@ const COMMAND_MAPPING: Record<string, { url: string; method: 'GET' | 'POST' | 'D
   'get_financial_chart_data': { url: '/api/analytics/financial/chart', method: 'GET' },
   'get_financial_usage_details': { url: '/api/analytics/financial/details', method: 'GET' },
   'refresh_financial_analytics': { url: '/api/analytics/financial/refresh', method: 'POST' },
+  'get_kiro_credit_snapshot': { url: '/api/analytics/kiro/credit', method: 'GET' },
 
   // Degradation Diagnostics & Telemetry
   'get_model_health_diagnostics': { url: '/api/analytics/diagnostics/health', method: 'GET' },

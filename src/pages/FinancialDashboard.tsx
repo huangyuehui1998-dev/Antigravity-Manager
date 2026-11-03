@@ -109,11 +109,16 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
     setLoading(true);
     try {
       const report: any = await invoke('refresh_financial_analytics');
-      if (report?.message) {
-        showToast(report.message, 'success');
-      } else {
-        showToast('增量同步完成', 'success');
+      // K5: SourceStat 用户可见 (抄自 ai_usagebar::kiro 语义，展示 kiro 真实状态)
+      const kiroSource = report?.sources?.find((s: any) => s.source === 'kiro');
+      let toastMsg = report?.message || '增量同步完成';
+      if (kiroSource) {
+        const skipText = kiroSource.skip_reason ? ` (${kiroSource.skip_reason})` : '';
+        const errText = kiroSource.error ? `, 错误: ${kiroSource.error}` : '';
+        const kiroSummary = `Kiro: 扫描 ${kiroSource.scanned}, 写入 ${kiroSource.inserted}, 跳过 ${kiroSource.skipped}${skipText}${errText}`;
+        toastMsg = `${toastMsg} | ${kiroSummary}`;
       }
+      showToast(toastMsg, report?.ok ? 'success' : 'info');
       await fetchData();
     } catch (e: any) {
       console.warn('Manual sync error:', e);
@@ -344,7 +349,7 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
           <div className="h-64 flex flex-col items-center justify-center text-sm opacity-50 space-y-2">
             <Layers className="w-10 h-10 stroke-[1.5] opacity-40" />
             <p className="font-medium">暂无全电脑调用流水记录 (N=0)</p>
-            <p className="text-xs opacity-70">发起 Cursor / Codex / 网关调用后将自动增量入湖</p>
+            <p className="text-xs opacity-70">发起 Antigravity / Cursor / Codex / Kiro 交互或网关代理后将自动增量入湖</p>
           </div>
         ) : (
           <div ref={parentRef} className="h-96 overflow-auto divide-y divide-base-200">

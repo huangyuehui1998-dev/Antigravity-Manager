@@ -6,6 +6,7 @@ import { formatDate, formatTimeRemaining } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
 import { MODEL_CONFIG, sortModels } from '../../config/modelConfig';
 import { showToast } from '../common/ToastContainer';
+import KiroCreditBar from './KiroCreditBar';
 
 interface AccountDetailsDialogProps {
     account: Account | null;
@@ -127,6 +128,11 @@ export default function AccountDetailsDialog({ account, onClose, onUpdatePriorit
 
                 {/* Content */}
                 <div className="p-6 max-h-[68vh] overflow-y-auto space-y-6">
+                    {/* Kiro Credit 权威快照水位 (抄自 UsageBar/PaceBar Tracked Metrics · Credits) */}
+                    {account?.provider === 'kiro' && (
+                        <KiroCreditBar accountId={account.id} />
+                    )}
+
                     {/* 优先级设置 */}
                     <div className="p-4 rounded-xl border border-gray-100 dark:border-base-200 bg-gray-50/50 dark:bg-base-200/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>

@@ -58,10 +58,12 @@ pub struct FinancialSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceStat {
-    pub source: String,        // "antigravity" | "cursor" | "codex" | "kiro"
-    pub scanned: usize,        // 读到的候选条数
-    pub inserted: usize,       // 写入 unified_token_usage 条数
-    pub skipped: usize,        // 本轮「读到但未写入」条数
+    pub source: String,  // "antigravity" | "cursor" | "codex" | "kiro"
+    pub scanned: usize,  // 读到的候选条数
+    pub inserted: usize, // 写入 unified_token_usage 或快照条数
+    pub skipped: usize,  // 本轮「读到但未写入」条数
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skip_reason: Option<String>, // 跳过原因 (如 missing_db, no_auth, no_usage_state, unchanged)
     pub error: Option<String>, // 该源失败原因；成功为 None
 }
 
@@ -161,6 +163,20 @@ pub fn open_analytics_db() -> Result<Connection, String> {
             PRIMARY KEY (period_type, period_key, source, normalized_model)
         );
         CREATE INDEX IF NOT EXISTS idx_rollup_period ON financial_rollups(period_type, period_key);
+
+        -- K1/K3: 抄自 UsageBar/PaceBar kiro.md 权威 CREDIT 快照存储表
+        CREATE TABLE IF NOT EXISTS kiro_usage_snapshots (
+          source TEXT NOT NULL DEFAULT 'kiro',
+          account_id TEXT NOT NULL,
+          snapshot_kind TEXT NOT NULL,
+          current_usage REAL NOT NULL,
+          usage_limit REAL NOT NULL,
+          reset_at TEXT,
+          free_trial_json TEXT,
+          raw_json TEXT,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (source, account_id, snapshot_kind)
+        );
         ",
     )
     .map_err(|e| format!("Failed to initialize analytics tables: {}", e))?;
@@ -728,6 +744,7 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
             scanned: c,
             inserted: c,
             skipped: 0,
+            skip_reason: None,
             error: None,
         }),
         Err(e) => sources.push(SourceStat {
@@ -735,6 +752,7 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
             scanned: 0,
             inserted: 0,
             skipped: 0,
+            skip_reason: None,
             error: Some(e),
         }),
     }
@@ -746,6 +764,7 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
             scanned: c,
             inserted: c,
             skipped: 0,
+            skip_reason: None,
             error: None,
         }),
         Err(e) => sources.push(SourceStat {
@@ -753,6 +772,7 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
             scanned: 0,
             inserted: 0,
             skipped: 0,
+            skip_reason: None,
             error: Some(e),
         }),
     }
@@ -764,6 +784,7 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
             scanned: c,
             inserted: c,
             skipped: 0,
+            skip_reason: None,
             error: None,
         }),
         Err(e) => sources.push(SourceStat {
@@ -771,24 +792,79 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
             scanned: 0,
             inserted: 0,
             skipped: 0,
+            skip_reason: None,
             error: Some(e),
         }),
     }
 
-    // 4. Kiro
-    match crate::modules::kiro_scanner::sync_kiro_data(&mut conn, &pricing) {
-        Ok(c) => sources.push(SourceStat {
-            source: "kiro".into(),
-            scanned: c,
-            inserted: c,
-            skipped: 0,
-            error: None,
-        }),
+    // 4. Kiro (抄自 ai_usagebar::kiro & UsageBar/PaceBar kiro.md)
+    match crate::modules::kiro_scanner::sync_kiro_data(&mut conn) {
+        Ok(crate::modules::kiro_scanner::KiroSyncOutcome::Inserted(c)) => {
+            sources.push(SourceStat {
+                source: "kiro".into(),
+                scanned: 1,
+                inserted: c,
+                skipped: 0,
+                skip_reason: None,
+                error: None,
+            });
+        }
+        Ok(crate::modules::kiro_scanner::KiroSyncOutcome::Unchanged) => {
+            sources.push(SourceStat {
+                source: "kiro".into(),
+                scanned: 1,
+                inserted: 0,
+                skipped: 1,
+                skip_reason: Some("unchanged".into()),
+                error: None,
+            });
+        }
+        Ok(crate::modules::kiro_scanner::KiroSyncOutcome::MissingDb) => {
+            sources.push(SourceStat {
+                source: "kiro".into(),
+                scanned: 0,
+                inserted: 0,
+                skipped: 1,
+                skip_reason: Some("missing_db".into()),
+                error: None,
+            });
+        }
+        Ok(crate::modules::kiro_scanner::KiroSyncOutcome::NoAuth) => {
+            sources.push(SourceStat {
+                source: "kiro".into(),
+                scanned: 1,
+                inserted: 0,
+                skipped: 1,
+                skip_reason: Some("no_auth".into()),
+                error: None,
+            });
+        }
+        Ok(crate::modules::kiro_scanner::KiroSyncOutcome::NoUsageState) => {
+            sources.push(SourceStat {
+                source: "kiro".into(),
+                scanned: 1,
+                inserted: 0,
+                skipped: 1,
+                skip_reason: Some("no_usage_state".into()),
+                error: None,
+            });
+        }
+        Ok(crate::modules::kiro_scanner::KiroSyncOutcome::Error(e)) => {
+            sources.push(SourceStat {
+                source: "kiro".into(),
+                scanned: 0,
+                inserted: 0,
+                skipped: 0,
+                skip_reason: None,
+                error: Some(e),
+            });
+        }
         Err(e) => sources.push(SourceStat {
             source: "kiro".into(),
             scanned: 0,
             inserted: 0,
             skipped: 0,
+            skip_reason: None,
             error: Some(e),
         }),
     }
@@ -829,9 +905,14 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
 
     let summary_parts: Vec<String> = sources
         .iter()
-        .map(|s| match &s.error {
-            Some(e) => format!("{}:失败({})", s.source, e),
-            None => format!("{}={}", s.source, s.inserted),
+        .map(|s| {
+            if let Some(ref e) = s.error {
+                format!("{}:失败({})", s.source, e)
+            } else if let Some(ref r) = s.skip_reason {
+                format!("{}:{}(跳过={})", s.source, r, s.skipped)
+            } else {
+                format!("{}={}", s.source, s.inserted)
+            }
         })
         .collect();
 
@@ -1001,4 +1082,73 @@ pub fn query_usage_details(
     }
 
     Ok((list, total))
+}
+
+// 抄自 UsageBar/PaceBar Tracked Metrics · Credits
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KiroCreditSnapshot {
+    pub source: String,
+    pub account_id: String,
+    pub snapshot_kind: String,
+    pub current_usage: f64,
+    pub usage_limit: f64,
+    pub reset_at: Option<String>,
+    pub free_trial_json: Option<String>,
+    pub raw_json: Option<String>,
+    pub updated_at: i64,
+}
+
+/// 抄自 UsageBar/PaceBar kiro.md & ai_usagebar::kiro
+/// 查询 Kiro Credit 最新权威快照
+pub fn query_kiro_credit_snapshot(
+    account_id: Option<String>,
+) -> Result<Option<KiroCreditSnapshot>, String> {
+    let conn = open_analytics_db()?;
+    let result = if let Some(ref acc) = account_id {
+        conn.query_row(
+            "SELECT source, account_id, snapshot_kind, current_usage, usage_limit, reset_at, free_trial_json, raw_json, updated_at
+             FROM kiro_usage_snapshots WHERE source = 'kiro' AND account_id = ?1 AND snapshot_kind = 'credit'
+             ORDER BY updated_at DESC LIMIT 1",
+            params![acc],
+            |row| {
+                Ok(KiroCreditSnapshot {
+                    source: row.get(0)?,
+                    account_id: row.get(1)?,
+                    snapshot_kind: row.get(2)?,
+                    current_usage: row.get(3)?,
+                    usage_limit: row.get(4)?,
+                    reset_at: row.get(5)?,
+                    free_trial_json: row.get(6)?,
+                    raw_json: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            },
+        )
+    } else {
+        conn.query_row(
+            "SELECT source, account_id, snapshot_kind, current_usage, usage_limit, reset_at, free_trial_json, raw_json, updated_at
+             FROM kiro_usage_snapshots WHERE source = 'kiro' AND snapshot_kind = 'credit'
+             ORDER BY updated_at DESC LIMIT 1",
+            [],
+            |row| {
+                Ok(KiroCreditSnapshot {
+                    source: row.get(0)?,
+                    account_id: row.get(1)?,
+                    snapshot_kind: row.get(2)?,
+                    current_usage: row.get(3)?,
+                    usage_limit: row.get(4)?,
+                    reset_at: row.get(5)?,
+                    free_trial_json: row.get(6)?,
+                    raw_json: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            },
+        )
+    };
+
+    match result {
+        Ok(snapshot) => Ok(Some(snapshot)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(format!("failed to query kiro credit snapshot: {}", e)),
+    }
 }

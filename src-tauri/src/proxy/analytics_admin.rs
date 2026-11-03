@@ -90,6 +90,23 @@ async fn admin_refresh_financial_analytics(
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct KiroCreditQuery {
+    pub account_id: Option<String>,
+}
+
+async fn admin_get_kiro_credit_snapshot(
+    Query(q): Query<KiroCreditQuery>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
+    match crate::commands::analytics::get_kiro_credit_snapshot(q.account_id).await {
+        Ok(res) => Ok(Json(res)),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse { error: e }),
+        )),
+    }
+}
+
 async fn admin_get_model_health_diagnostics(
     Query(q): Query<DiagnosticsHealthQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
@@ -180,6 +197,10 @@ where
         .route(
             "/analytics/financial/refresh",
             post(admin_refresh_financial_analytics),
+        )
+        .route(
+            "/analytics/kiro/credit",
+            get(admin_get_kiro_credit_snapshot),
         )
         .route(
             "/analytics/diagnostics/health",

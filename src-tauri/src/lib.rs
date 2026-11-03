@@ -724,6 +724,7 @@ pub fn run() {
             commands::get_financial_chart_data,
             commands::get_financial_usage_details,
             commands::refresh_financial_analytics,
+            commands::get_kiro_credit_snapshot,
             commands::get_discovered_antigravity_paths,
             commands::add_custom_antigravity_path,
             commands::get_official_benchmark_specs,

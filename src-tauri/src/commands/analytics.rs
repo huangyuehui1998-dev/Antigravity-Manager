@@ -1,7 +1,9 @@
 // src-tauri/src/commands/analytics.rs
 // 财务看板与数据湖 Tauri IPC 接口
 
-use crate::modules::analytics_hub::{self, FinancialSummary, PeriodRollupItem, UnifiedUsageRecord};
+use crate::modules::analytics_hub::{
+    self, FinancialSummary, KiroCreditSnapshot, PeriodRollupItem, UnifiedUsageRecord,
+};
 
 #[tauri::command]
 pub async fn get_financial_summary() -> Result<FinancialSummary, String> {
@@ -26,6 +28,14 @@ pub async fn get_financial_usage_details(
 #[tauri::command]
 pub async fn refresh_financial_analytics() -> Result<analytics_hub::RefreshReport, String> {
     analytics_hub::refresh_all_analytics()
+}
+
+// 抄自 UsageBar/PaceBar Tracked Metrics · Credits
+#[tauri::command]
+pub async fn get_kiro_credit_snapshot(
+    account_id: Option<String>,
+) -> Result<Option<KiroCreditSnapshot>, String> {
+    analytics_hub::query_kiro_credit_snapshot(account_id)
 }
 
 /// 获取全域五级探测发现的所有有效 Antigravity 数据源目录

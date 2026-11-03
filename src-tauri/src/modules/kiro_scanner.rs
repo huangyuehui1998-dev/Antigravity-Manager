@@ -1,162 +1,395 @@
 // src-tauri/src/modules/kiro_scanner.rs
-// Kiro IDE & AWS SSO Account and Token Usage Scanner
+// Kiro IDE Local Credit Usage Snapshot Sync & Scanner
+// 抄自 UsageBar/PaceBar kiro.md & ai_usagebar::kiro & deltaguita/kiro-credit-usage
 
-use crate::modules::analytics_hub::{normalize_model_name, PricingEntry, DEFAULT_USD_TO_CNY};
-use rusqlite::{params, Connection, OpenFlags};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
+// 抄自 UsageBar/PaceBar kiro.md Token file kiro-auth-token.json
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KiroSSOToken {
-    pub start_url: Option<String>,
-    pub region: Option<String>,
+pub struct KiroAuthToken {
+    #[serde(rename = "accessToken")]
     pub access_token: Option<String>,
+    #[serde(rename = "refreshToken")]
+    pub refresh_token: Option<String>,
+    #[serde(rename = "expiresAt")]
     pub expires_at: Option<String>,
-    pub client_id: Option<String>,
+    #[serde(rename = "profileArn")]
+    pub profile_arn: Option<String>,
 }
 
-/// Detect Kiro SSO cache files in ~/.aws/sso/cache/*.json
-pub fn get_kiro_sso_files() -> Vec<PathBuf> {
-    let home = match dirs::home_dir() {
-        Some(h) => h,
-        None => return Vec::new(),
-    };
-    let sso_dir = home.join(".aws").join("sso").join("cache");
-    let mut files = Vec::new();
-    if sso_dir.exists() {
-        if let Ok(entries) = fs::read_dir(sso_dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.extension().map_or(false, |ext| ext == "json") {
-                    files.push(p);
-                }
+// 抄自 ai_usagebar::kiro Outcome 语义
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KiroSyncOutcome {
+    MissingDb,
+    NoAuth,
+    NoUsageState,
+    Inserted(usize),
+    Unchanged,
+    Error(String),
+}
+
+/// 抄自 UsageBar/PaceBar kiro.md Token file kiro-auth-token.json
+/// 只读固定文件 ~/.aws/sso/cache/kiro-auth-token.json，严禁枚举 *.json
+pub fn get_kiro_auth_token_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| {
+        h.join(".aws")
+            .join("sso")
+            .join("cache")
+            .join("kiro-auth-token.json")
+    })
+}
+
+/// 读取并校验 kiro-auth-token.json
+pub fn read_kiro_auth_token() -> Result<KiroAuthToken, String> {
+    let token_path = get_kiro_auth_token_path()
+        .ok_or_else(|| "no_auth: cannot resolve home directory".to_string())?;
+
+    if !token_path.exists() {
+        return Err("no_auth: kiro-auth-token.json does not exist".to_string());
+    }
+
+    let content = fs::read_to_string(&token_path)
+        .map_err(|e| format!("no_auth: failed to read token file: {}", e))?;
+
+    let token: KiroAuthToken = serde_json::from_str(&content)
+        .map_err(|e| format!("no_auth: invalid token json: {}", e))?;
+
+    // 检查 access_token 是否非空
+    if token
+        .access_token
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .is_empty()
+    {
+        return Err("no_auth: access_token is empty".to_string());
+    }
+
+    // 检查是否过期 (expiresAt: RFC3339)
+    if let Some(ref exp_str) = token.expires_at {
+        if let Ok(exp_time) = chrono::DateTime::parse_from_rfc3339(exp_str) {
+            if chrono::Utc::now() > exp_time.with_timezone(&chrono::Utc) {
+                return Err("no_auth: token expired".to_string());
             }
         }
     }
-    files
+
+    Ok(token)
 }
 
-/// Detect Kiro state database
+/// 抄自 UsageBar/PaceBar kiro.md Platform Paths
+/// 检测 Kiro state database 跨平台路径
 pub fn get_kiro_vscdb_path() -> Option<PathBuf> {
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        let p = Path::new(&appdata)
-            .join("Kiro")
-            .join("User")
-            .join("globalStorage")
-            .join("state.vscdb");
-        if p.exists() {
-            return Some(p);
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            let p = PathBuf::from(&appdata)
+                .join("Kiro")
+                .join("User")
+                .join("globalStorage")
+                .join("state.vscdb");
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let p = home
+                .join("Library")
+                .join("Application Support")
+                .join("Kiro")
+                .join("User")
+                .join("globalStorage")
+                .join("state.vscdb");
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let p = home
+                .join(".config")
+                .join("Kiro")
+                .join("User")
+                .join("globalStorage")
+                .join("state.vscdb");
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+
+    // 备用探测兜底（支持测试/异构环境）
+    if let Some(home) = dirs::home_dir() {
+        let mac_p = home.join("Library/Application Support/Kiro/User/globalStorage/state.vscdb");
+        if mac_p.exists() {
+            return Some(mac_p);
+        }
+        let lin_p = home.join(".config/Kiro/User/globalStorage/state.vscdb");
+        if lin_p.exists() {
+            return Some(lin_p);
         }
     }
     None
 }
 
-/// Synchronize Kiro usage data into analytics_hub.db and token_stats.db
-pub fn sync_kiro_data(
-    dest_conn: &mut Connection,
-    pricing_map: &HashMap<String, PricingEntry>,
-) -> Result<usize, String> {
-    let mut total_scanned = 0;
+/// 抄自 UsageBar/PaceBar kiro.md & ai_usagebar::kiro & deltaguita/kiro-credit-usage
+/// 精确解析 kiro.kiroAgent usageState CREDIT 水位并 UPSERT 至 kiro_usage_snapshots
+pub fn sync_kiro_data(dest_conn: &mut Connection) -> Result<KiroSyncOutcome, String> {
+    // 1. 探测 Kiro state.vscdb
+    let vscdb_path = match get_kiro_vscdb_path() {
+        Some(p) => p,
+        None => return Ok(KiroSyncOutcome::MissingDb),
+    };
+
+    // 2. 读取固定鉴权 token (无 / 过期均返回 NoAuth)
+    let auth_token = match read_kiro_auth_token() {
+        Ok(t) => t,
+        Err(_) => return Ok(KiroSyncOutcome::NoAuth),
+    };
+
+    // 确定唯一 account_id (优先 profileArn，若无则使用提取短标识)
+    let account_id = match auth_token.profile_arn.as_ref() {
+        Some(arn) if !arn.trim().is_empty() => arn.trim().to_string(),
+        _ => return Ok(KiroSyncOutcome::NoAuth),
+    };
+
+    let mtime = fs::metadata(&vscdb_path)
+        .and_then(|m| m.modified())
+        .map(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as i64
+        })
+        .unwrap_or(0);
+
+    let source_key = format!("kiro:{}", vscdb_path.to_string_lossy());
+    let last_mtime: i64 = dest_conn
+        .query_row(
+            "SELECT last_mtime FROM sync_checkpoints WHERE source_key = ?",
+            params![&source_key],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if mtime > 0 && mtime <= last_mtime {
+        return Ok(KiroSyncOutcome::Unchanged);
+    }
+
+    // 打开只读连接
+    let src_conn = crate::modules::sqlite_uri::open_sqlite_ro(&vscdb_path)
+        .map_err(|e| format!("failed to open kiro state.vscdb: {}", e))?;
+    let _ = src_conn.pragma_update(None, "query_only", "ON");
+    let _ = src_conn.pragma_update(None, "busy_timeout", 2000);
+
+    // K1: 主路径 SQL（唯一），彻底废除 LIKE 模糊滥扫
+    let mut stmt = src_conn
+        .prepare("SELECT [value] FROM ItemTable WHERE [key] = 'kiro.kiroAgent' LIMIT 1;")
+        .map_err(|e| format!("failed to prepare statement: {}", e))?;
+
+    let val_str_opt: Option<String> = stmt.query_row([], |row| row.get(0)).ok();
+
+    let val_str = match val_str_opt {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => return Ok(KiroSyncOutcome::NoUsageState),
+    };
+
+    let json_val: serde_json::Value = serde_json::from_str(&val_str)
+        .map_err(|e| format!("failed to parse kiro.kiroAgent json: {}", e))?;
+
+    // 寻找 usageState（支持直接 usageState 或嵌套 kiro.resourceNotifications.usageState）
+    let usage_state = json_val
+        .get("usageState")
+        .or_else(|| json_val.get("kiro.resourceNotifications.usageState"));
+
+    let usage_breakdowns = usage_state
+        .and_then(|us| us.get("usageBreakdowns"))
+        .and_then(|b| b.as_array());
+
+    let breakdowns = match usage_breakdowns {
+        Some(arr) if !arr.is_empty() => arr,
+        _ => return Ok(KiroSyncOutcome::NoUsageState),
+    };
+
+    // 查找 type == "CREDIT" 或单元素首项 (对齐 ai_usagebar::kiro credit_breakdown)
+    let credit_item = breakdowns
+        .iter()
+        .find(|item| {
+            matches!(
+                item.get("type").and_then(|v| v.as_str()),
+                Some(t) if t.eq_ignore_ascii_case("CREDIT")
+            )
+        })
+        .or_else(|| breakdowns.first());
+
+    let credit = match credit_item {
+        Some(c) => c,
+        None => return Ok(KiroSyncOutcome::NoUsageState),
+    };
+
+    let current_usage = credit
+        .get("currentUsage")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let usage_limit = credit
+        .get("usageLimit")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let reset_at = credit
+        .get("resetDate")
+        .or_else(|| credit.get("resetAt"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let free_trial_json = usage_state
+        .and_then(|us| us.get("freeTrialUsage").or_else(|| us.get("freeTrial")))
+        .map(|v| v.to_string());
+
     let now_ms = chrono::Utc::now().timestamp_millis();
 
-    // 1. Scan Kiro state.vscdb if present
-    if let Some(vscdb_path) = get_kiro_vscdb_path() {
-        let mtime = fs::metadata(&vscdb_path)
-            .and_then(|m| m.modified())
-            .map(|t| {
-                t.duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis() as i64
-            })
-            .unwrap_or(0);
+    // 确保 kiro_usage_snapshots 表存在 (DDL 严格对齐说明书)
+    dest_conn
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS kiro_usage_snapshots (
+          source TEXT NOT NULL DEFAULT 'kiro',
+          account_id TEXT NOT NULL,
+          snapshot_kind TEXT NOT NULL,
+          current_usage REAL NOT NULL,
+          usage_limit REAL NOT NULL,
+          reset_at TEXT,
+          free_trial_json TEXT,
+          raw_json TEXT,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (source, account_id, snapshot_kind)
+        );",
+        )
+        .map_err(|e| format!("failed to create kiro_usage_snapshots table: {}", e))?;
 
-        let source_key = format!("kiro:{}", vscdb_path.to_string_lossy());
-        let last_mtime: i64 = dest_conn
-            .query_row(
-                "SELECT last_mtime FROM sync_checkpoints WHERE source_key = ?",
-                params![&source_key],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
+    // 查询之前值比对是否变更
+    let prev_usage: Option<(f64, f64)> = dest_conn
+        .query_row(
+            "SELECT current_usage, usage_limit FROM kiro_usage_snapshots WHERE source = 'kiro' AND account_id = ?1 AND snapshot_kind = 'credit'",
+            params![&account_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .ok();
 
-        if mtime > 0 && mtime > last_mtime {
-            if let Ok(src_conn) = crate::modules::sqlite_uri::open_sqlite_ro(&vscdb_path) {
-                let _ = src_conn.pragma_update(None, "query_only", "ON");
-                let _ = src_conn.pragma_update(None, "busy_timeout", 2000);
+    let is_changed = match prev_usage {
+        Some((prev_curr, prev_lim)) => {
+            (prev_curr - current_usage).abs() > 0.0001 || (prev_lim - usage_limit).abs() > 0.0001
+        }
+        None => true,
+    };
 
-                if let Ok(mut stmt) = src_conn.prepare(
-                    "SELECT [key], [value] FROM ItemTable WHERE [key] LIKE '%kiro%' OR [key] LIKE '%aiCodeTracking%' LIMIT 100",
-                ) {
-                    let mut ts_conn_opt = crate::modules::token_stats::connect_db().ok();
-                    let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)));
-                    if let Ok(r_iter) = rows {
-                        for (key, val) in r_iter.flatten() {
-                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&val) {
-                                let total_tokens = json.get("totalTokens").and_then(|v| v.as_i64()).unwrap_or(0);
-                                if total_tokens > 0 {
-                                    let raw_model = json.get("model").and_then(|v| v.as_str()).unwrap_or("kiro-default");
-                                    let (normalized, _) = normalize_model_name(raw_model);
-                                    let inp = json.get("inputTokens").and_then(|v| v.as_i64()).unwrap_or(total_tokens / 2);
-                                    let out = json.get("outputTokens").and_then(|v| v.as_i64()).unwrap_or(total_tokens / 2);
-                                    let (in_rate, out_rate, cache_rate) = pricing_map
-                                        .get(&normalized)
-                                        .map(|p| (p.input_per_m, p.output_per_m, p.cache_read_per_m))
-                                        .unwrap_or((1.5, 7.5, 0.15));
+    // 执行 UPSERT 写入主 credit 快照
+    dest_conn
+        .execute(
+            "INSERT INTO kiro_usage_snapshots (
+          source, account_id, snapshot_kind,
+          current_usage, usage_limit, reset_at,
+          free_trial_json, raw_json, updated_at
+        ) VALUES ('kiro', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        ON CONFLICT(source, account_id, snapshot_kind) DO UPDATE SET
+          current_usage = excluded.current_usage,
+          usage_limit = excluded.usage_limit,
+          reset_at = excluded.reset_at,
+          free_trial_json = excluded.free_trial_json,
+          raw_json = excluded.raw_json,
+          updated_at = excluded.updated_at;",
+            params![
+                &account_id,
+                "credit",
+                current_usage,
+                usage_limit,
+                &reset_at,
+                &free_trial_json,
+                &val_str,
+                now_ms
+            ],
+        )
+        .map_err(|e| format!("failed to upsert kiro_usage_snapshots: {}", e))?;
 
-                                    let cost_usd = (inp as f64 / 1_000_000.0) * in_rate + (out as f64 / 1_000_000.0) * out_rate;
-                                    let cost_cny = cost_usd * DEFAULT_USD_TO_CNY;
-
-                                    let _ = dest_conn.execute(
-                                        "INSERT INTO unified_token_usage (
-                                            timestamp, source, client_name, account_id, raw_model, normalized_model,
-                                            input_tokens, output_tokens, cached_tokens, total_tokens,
-                                            input_unit_price, output_unit_price, exchange_rate, cost_usd, cost_cny
-                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                        params![
-                                            mtime, "Kiro", "Kiro IDE", key, raw_model, normalized,
-                                            inp, out, 0i64, total_tokens, in_rate, out_rate, DEFAULT_USD_TO_CNY, cost_usd, cost_cny
-                                        ],
-                                    );
-
-                                    if let Some(ref mut ts_conn) = ts_conn_opt {
-                                        let hour_bucket = chrono::DateTime::from_timestamp_millis(mtime)
-                                            .map(|dt| dt.format("%Y-%m-%d %H:00").to_string())
-                                            .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d %H:00").to_string());
-                                        let ts_sec = mtime / 1000;
-                                        let _ = ts_conn.execute(
-                                            "INSERT INTO token_usage (timestamp, account_email, model, input_tokens, output_tokens, cached_tokens, total_tokens)
-                                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                                            params![ts_sec, "kiro-user", &normalized, inp, out, 0i64, total_tokens],
-                                        );
-                                        let _ = ts_conn.execute(
-                                            "INSERT INTO token_stats_hourly (hour_bucket, account_email, total_input_tokens, total_output_tokens, total_cached_tokens, total_tokens, request_count)
-                                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)
-                                             ON CONFLICT(hour_bucket, account_email) DO UPDATE SET
-                                                total_input_tokens = total_input_tokens + ?3,
-                                                total_output_tokens = total_output_tokens + ?4,
-                                                total_tokens = total_tokens + ?5,
-                                                request_count = request_count + 1",
-                                            params![hour_bucket, "kiro-user", inp, out, total_tokens],
-                                        );
-                                    }
-                                    total_scanned += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 仅在成功打开并扫描后推进水位线
-                let _ = dest_conn.execute(
-                    "INSERT OR REPLACE INTO sync_checkpoints (source_key, file_path, last_mtime, last_offset, last_record_id, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?)",
-                    params![&source_key, &vscdb_path.to_string_lossy(), mtime, total_scanned as i64, "kiro", now_ms],
-                );
-            }
+    // 若有 freeTrial 则写入 credit_trial 行
+    if let Some(ref ft_str) = free_trial_json {
+        if let Ok(ft_val) = serde_json::from_str::<serde_json::Value>(ft_str) {
+            let ft_curr = ft_val
+                .get("currentUsage")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let ft_lim = ft_val
+                .get("usageLimit")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let _ = dest_conn.execute(
+                "INSERT INTO kiro_usage_snapshots (
+                  source, account_id, snapshot_kind,
+                  current_usage, usage_limit, reset_at,
+                  free_trial_json, raw_json, updated_at
+                ) VALUES ('kiro', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                ON CONFLICT(source, account_id, snapshot_kind) DO UPDATE SET
+                  current_usage = excluded.current_usage,
+                  usage_limit = excluded.usage_limit,
+                  reset_at = excluded.reset_at,
+                  free_trial_json = excluded.free_trial_json,
+                  raw_json = excluded.raw_json,
+                  updated_at = excluded.updated_at;",
+                params![
+                    &account_id,
+                    "credit_trial",
+                    ft_curr,
+                    ft_lim,
+                    &reset_at,
+                    &free_trial_json,
+                    &val_str,
+                    now_ms
+                ],
+            );
         }
     }
 
-    Ok(total_scanned)
+    // 成功 UPSERT 快照后推进 checkpoint
+    let _ = dest_conn.execute(
+        "INSERT OR REPLACE INTO sync_checkpoints (source_key, file_path, last_mtime, last_offset, last_record_id, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        params![&source_key, &vscdb_path.to_string_lossy(), mtime, 1i64, "kiro", now_ms],
+    );
+
+    // K2: 账号入库与索引同步 (provider="kiro", 身份为 profileArn，绝不造假邮箱)
+    let short_arn = account_id.split('/').last().unwrap_or(&account_id);
+    let display_name = format!("Kiro ({})", short_arn);
+    let access_token_str = auth_token.access_token.unwrap_or_default();
+    let refresh_token_str = auth_token.refresh_token.unwrap_or_default();
+
+    let kiro_token = crate::models::token::TokenData {
+        access_token: access_token_str,
+        refresh_token: refresh_token_str,
+        expires_in: 3600,
+        expiry_timestamp: now_ms / 1000 + 3600,
+        token_type: "Bearer".to_string(),
+        email: Some(account_id.clone()),
+        project_id: None,
+        oauth_client_key: None,
+        session_id: None,
+        is_gcp_tos: false,
+        id_token: None,
+    };
+
+    let mut account =
+        crate::models::account::Account::new(account_id.clone(), account_id.clone(), kiro_token);
+    account.name = Some(display_name);
+    account.provider = Some("kiro".to_string());
+    let _ = crate::modules::account::save_account(&account);
+
+    if is_changed {
+        Ok(KiroSyncOutcome::Inserted(1))
+    } else {
+        Ok(KiroSyncOutcome::Unchanged)
+    }
 }
