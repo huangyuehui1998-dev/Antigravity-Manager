@@ -3,6 +3,11 @@
 > 完整版本历史记录。返回项目主页请查看 [README_ZH.md](README_ZH.md) | [English Changelog](CHANGELOG_EN.md)。
 
 *   **版本演进**:
+    *   **v5.3.1 (2026-11-03)**:
+        -   **[Kiro 本地 Credit 快照显式同步与重置节奏对齐]**: 在 `KiroCreditBar` 补齐显式「同步」交互按钮，复用既有 `refresh_financial_analytics` 数据管线（无多余冗余 API），精准解析并弹出 `Kiro: 扫描 X, 写入 Y, 跳过 Z` 结构化状态；严格写实：Credit 数据 100% 读自本地 SQLite (`kiro.kiroAgent` usageState 快照，对齐 UsageBar/PaceBar 语义；绝非 Protobuf 会话引擎)；无 Kiro 环境下返回 `missing_db` 并保留真实空态引导，绝不伪造 0/0 虚假成功；本地动态解析 `reset_at` 补齐距重置倒计时 (`距重置 ≈ Nd Nh`)。(Fixes #3760)
+        -   **[Windows UIA 单文本节点百分比排版全面加固]**: 针对 Chromium/WebView2 在 JSX `{expr}%` 拆分导致 Windows DirectWrite 与 UIA 辅助阅读割裂换行的物理隐患，对 `CyberCockpitView`、`AppleBentoView` 及 `TopModelsShareCard` 全面重构为模板字符串单 Text 节点渲染 ``{`${Math.round(val)}%`}``，静态 Regex 扫描全量通过。(Fixes #3761)
+    *   **v5.3.0 (2026-11-03)**:
+        -   **[数据中枢 Analytics Hub 全真值重构]**: 彻底清退前端硬编码假值指标（$522.73、7.18 亿 Tokens、135 TPS 等占位符）；跨平台 SQLite URI 统一只读安全规范，根除 Windows 盘符与 UNC 异常；修复 Kiro 扫描器同步检查点提前提交缺陷；反代状态二元真值化 (`admin_bound` 与 `forwarding`)。(Fixes #3758)
     *   **v5.2.0 (2026-11-02)**:
         -   **[全域跨盘五级自适应数据源感知引擎]**: 落地五级路径探索机制（L1 环境变量、L2 便携/当前目录、L3 WSL2 网络重定向、L4 C/D/E/F/G 全盘特征扫描、L5 `path_manifest.json` 持久化），在任何电脑上无论安装路径或会话存储在何处均可 100% 自动关联验真；修复 SQLite 只读 URI 包含特殊字符（`#` / `?`）的锚点截断 bug，会话二次增量跳过耗时收敛至 18ms。(Fixes #3750)
         -   **[上游物理模型真伪核验与双轨降智金丝雀探针]**: 集成端到端状态机与 RFC 4122 v4 拟真 Reducer 探针，对大模型自然输出格式（空格、换行、缩进、Markdown 代码块）实现 100% 空白容错召回；精准推演参数化物理延迟预期模型 $TTFT_{expected}(L, C)$，提供思维链阉割一票否决与掉包归零红灯熔断。(Fixes #3751)
