@@ -5,6 +5,7 @@ pub mod antigravity_scanner;
 pub mod kiro_scanner;
 pub mod nano_currency;
 pub mod official_specs;
+pub mod sqlite_uri;
 pub mod universal_discovery;
 pub mod degradation_diagnostics;
 pub mod model_telemetry;

@@ -111,11 +111,7 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
     fields
 }
 
-fn make_sqlite_ro_uri(path: &Path) -> String {
-    let raw = path.to_string_lossy();
-    let encoded = raw.replace('#', "%23").replace('?', "%3F");
-    format!("file:{}?mode=ro", encoded)
-}
+pub use crate::modules::sqlite_uri::make_sqlite_ro_uri;
 
 /// 读取 Antigravity 会话标题索引映射 (全域五级自适应感知多路径)
 pub fn get_antigravity_titles() -> HashMap<String, String> {

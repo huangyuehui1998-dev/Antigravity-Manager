@@ -317,6 +317,7 @@ const TokenStats: React.FC = () => {
     const [allAccounts, setAllAccounts] = useState<string[]>([]);
     const [summary, setSummary] = useState<TokenStatsSummary | null>(null);
     const [loading, setLoading] = useState(true);
+    const lastTokenSyncRef = useRef<number>(0);
 
     // 经典模式专属堆叠图数据
     const [classicChartData, setClassicChartData] = useState<TokenStatsAggregated[]>([]);
@@ -409,6 +410,15 @@ const TokenStats: React.FC = () => {
     }, [summary]);
 
     const fetchData = async () => {
+        const now = Date.now();
+        if (now - lastTokenSyncRef.current > 30000) {
+            lastTokenSyncRef.current = now;
+            try {
+                await invoke('refresh_financial_analytics');
+            } catch (syncErr) {
+                console.warn('Silent sync before token stats failed:', syncErr);
+            }
+        }
         setLoading(true);
         try {
             let hours = 24;

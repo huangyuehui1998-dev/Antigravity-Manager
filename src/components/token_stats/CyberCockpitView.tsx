@@ -261,13 +261,13 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
 
         const effectivePeak = peak > 0 ? peak : 1;
         buckets.forEach(b => {
-            b.pct = peak > 0 ? Math.max(10, Math.round((b.data.total_tokens / effectivePeak) * 100)) : 10;
+            b.pct = b.data.total_tokens > 0 ? Math.max(10, Math.round((b.data.total_tokens / effectivePeak) * 100)) : 0;
         });
 
         return {
             hourBuckets: buckets,
             maxHourTokens: peak,
-            peakHourLabel: peak > 0 ? peakHour : `${now.getHours()}:00`,
+            peakHourLabel: peak > 0 ? peakHour : t('token_stats.no_peak', '暂无峰值'),
             troughHourLabel: troughLabel !== '--:--' ? troughLabel : '04:00',
         };
     }, [hourlyData]);
@@ -551,7 +551,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                 </div>
 
                                 <div className="pt-1 border-t border-gray-100 dark:border-white/[0.06] text-[10px] font-mono text-gray-500 dark:text-gray-400">
-                                    <span>{t('token_stats.cockpit_status_normal', '网关调用正常')}</span>
+                                    <span>{(summary?.total_tokens || 0) > 0 ? t('token_stats.cockpit_status_normal', '网关调用正常') : t('token_stats.cockpit_status_empty', '暂无调用数据')}</span>
                                 </div>
                             </div>
                         </div>

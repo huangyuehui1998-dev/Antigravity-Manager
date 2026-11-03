@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { request as invoke } from '../../utils/request';
 import { Zap, HardDrive, FileText, RotateCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import SpeedometerCanvas from './SpeedometerCanvas';
 
@@ -33,9 +33,10 @@ interface HealthReport {
   thinking_ratio: number;
   diagnosis_summary: string;
   can_auto_failover: boolean;
+  sample_count: number;
 }
 
-export const ModelDiagnosticsDashboard: React.FC = () => {
+export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ active = true }) => {
   const [paths, setPaths] = useState<string[]>([]);
   const [customPath, setCustomPath] = useState('');
   const [specs, setSpecs] = useState<OfficialSpec[]>([]);
@@ -137,9 +138,15 @@ export const ModelDiagnosticsDashboard: React.FC = () => {
             <HardDrive className="w-4 h-4" />
             五级全域路径自动探测与关联 (Universal Discovery Level 1~5)
           </span>
-          <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-            🟢 100% 自动穿透识别 (已发现 {paths.length} 个数据源)
-          </span>
+          {paths.length === 0 ? (
+            <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700">
+              ⚪ 未发现数据源 (N=0)
+            </span>
+          ) : (
+            <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+              🟢 已发现 {paths.length} 个数据源
+            </span>
+          )}
         </div>
         <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
           {paths.map((p, idx) => (
@@ -171,30 +178,39 @@ export const ModelDiagnosticsDashboard: React.FC = () => {
         <div className="bg-slate-900/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between items-center text-center">
           <div className="w-full flex justify-between items-center border-b border-slate-800 pb-2">
             <span className="text-xs font-mono text-slate-400">⚡ REALTIME SPEEDOMETER</span>
-            <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-              {report?.status === 'Nominal' ? '🟢 满血极速' : '🟡 算力排队'}
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">
+              {!report || report.sample_count === 0
+                ? '⚪ 样本不足 (N=0)'
+                : report.status === 'Nominal'
+                ? '🟢 满血极速'
+                : '🟡 算力排队'}
             </span>
           </div>
           <div className="py-2">
             <SpeedometerCanvas
-              currentTps={report?.actual_tps || 135}
-              nominalMinTps={activeSpec?.nominal_tps_min || 120}
-              nominalMaxTps={activeSpec?.nominal_tps_max || 155}
-              healthScore={report?.health_score || 95}
-              status={report?.status || 'Nominal'}
+              currentTps={report?.actual_tps ?? 0}
+              nominalMinTps={activeSpec?.nominal_tps_min ?? 0}
+              nominalMaxTps={activeSpec?.nominal_tps_max ?? 0}
+              healthScore={report?.health_score ?? 0}
+              status={report?.status || 'InsufficientSamples'}
+              active={active}
             />
           </div>
           <div className="w-full bg-slate-950/80 p-2.5 rounded text-xs font-mono space-y-1 text-left border border-slate-800">
             <div className="flex justify-between text-slate-400">
               <span>物理验真:</span>
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
+              <span className={report && report.sample_count > 0 ? "text-emerald-400 font-bold flex items-center gap-1" : "text-slate-400 flex items-center gap-1"}>
                 <ShieldCheck className="w-3.5 h-3.5" />
-                PASS (指纹严格对齐)
+                {report && report.sample_count > 0 ? "PASS (指纹对齐)" : "待采样 (N=0)"}
               </span>
             </div>
             <div className="flex justify-between text-slate-400">
               <span>当前物理号:</span>
-              <span className="text-slate-200 truncate">{report?.exact_model_id}</span>
+              <span className="text-slate-200 truncate">{report?.exact_model_id || '--'}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>流式样本:</span>
+              <span className="text-slate-300 font-mono">N = {report?.sample_count ?? 0}</span>
             </div>
           </div>
         </div>
@@ -224,17 +240,17 @@ export const ModelDiagnosticsDashboard: React.FC = () => {
             </div>
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
               <span className="text-slate-400">实测瞬时流速:</span>
-              <span className="text-emerald-400 font-bold">{(report?.actual_tps ?? 135).toFixed(1)} T/s</span>
+              <span className="text-emerald-400 font-bold">{(report?.actual_tps ?? 0).toFixed(1)} T/s</span>
             </div>
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
               <span className="text-slate-400">标称偏离度:</span>
               <span className={report && report.tps_deviation_pct < -25 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
-                {(report?.tps_deviation_pct ?? 0).toFixed(1)}% (满血正常)
+                {!report || report.sample_count === 0 ? '暂无样本 (N=0)' : `${(report?.tps_deviation_pct ?? 0).toFixed(1)}% (${report?.status === 'Nominal' ? '满血极速' : '算力排队'})`}
               </span>
             </div>
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
               <span className="text-slate-400">TTFT 首字延迟:</span>
-              <span className="text-slate-200">{report?.actual_ttft_ms ?? 240}ms (标称 P50: {activeSpec?.nominal_ttft_ms_p50 ?? 260}ms)</span>
+              <span className="text-slate-200">{report?.actual_ttft_ms ? `${report.actual_ttft_ms}ms` : '--'} (标称 P50: {activeSpec?.nominal_ttft_ms_p50 ? `${activeSpec.nominal_ttft_ms_p50}ms` : '--'})</span>
             </div>
           </div>
 
@@ -248,22 +264,22 @@ export const ModelDiagnosticsDashboard: React.FC = () => {
           <div className="flex justify-between items-center border-b border-slate-800 pb-2">
             <span className="text-xs font-mono text-rose-400">🛡️ 谷歌降智权威评判</span>
             <span className="text-xs font-bold text-white bg-slate-800 px-2 py-0.5 rounded">
-              综合评分: {report?.health_score || 95} / 100
+              综合评分: {report?.health_score ?? 0} / 100
             </span>
           </div>
 
           <div className="space-y-2 text-xs">
             <div className="flex items-center justify-between text-slate-300">
               <span>速度指数 (S_speed):</span>
-              <span className="font-mono text-emerald-400">{(report?.speed_score ?? 95).toFixed(0)}分</span>
+              <span className="font-mono text-emerald-400">{(report?.speed_score ?? 0).toFixed(0)}分</span>
             </div>
             <div className="flex items-center justify-between text-slate-300">
               <span>智力保真 (S_intel):</span>
-              <span className="font-mono text-emerald-400">{(report?.intel_score ?? 98).toFixed(0)}分</span>
+              <span className="font-mono text-emerald-400">{(report?.intel_score ?? 0).toFixed(0)}分</span>
             </div>
             <div className="flex items-center justify-between text-slate-300">
               <span>稳定性 (S_stability):</span>
-              <span className="font-mono text-emerald-400">{(report?.stability_score ?? 92).toFixed(0)}分</span>
+              <span className="font-mono text-emerald-400">{(report?.stability_score ?? 0).toFixed(0)}分</span>
             </div>
           </div>
 

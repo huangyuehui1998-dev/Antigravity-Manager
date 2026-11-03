@@ -74,11 +74,7 @@ pub fn sync_kiro_data(
             .unwrap_or(0);
 
         if mtime > 0 && mtime > last_mtime {
-            let uri = format!("file:{}?mode=ro", vscdb_path.to_string_lossy());
-            if let Ok(src_conn) = Connection::open_with_flags(
-                &uri,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-            ) {
+            if let Ok(src_conn) = crate::modules::sqlite_uri::open_sqlite_ro(&vscdb_path) {
                 let _ = src_conn.pragma_update(None, "query_only", "ON");
                 let _ = src_conn.pragma_update(None, "busy_timeout", 2000);
 
@@ -143,13 +139,14 @@ pub fn sync_kiro_data(
                         }
                     }
                 }
-            }
 
-            let _ = dest_conn.execute(
-                "INSERT OR REPLACE INTO sync_checkpoints (source_key, file_path, last_mtime, last_offset, last_record_id, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?)",
-                params![&source_key, &vscdb_path.to_string_lossy(), mtime, total_scanned as i64, "kiro", now_ms],
-            );
+                // 仅在成功打开并扫描后推进水位线
+                let _ = dest_conn.execute(
+                    "INSERT OR REPLACE INTO sync_checkpoints (source_key, file_path, last_mtime, last_offset, last_record_id, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?)",
+                    params![&source_key, &vscdb_path.to_string_lossy(), mtime, total_scanned as i64, "kiro", now_ms],
+                );
+            }
         }
     }
 

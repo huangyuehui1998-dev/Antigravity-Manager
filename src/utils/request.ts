@@ -193,6 +193,20 @@ const COMMAND_MAPPING: Record<string, { url: string; method: 'GET' | 'POST' | 'D
   'bind_account_proxy': { url: '/api/proxy/pool/bind', method: 'POST' },
   'unbind_account_proxy': { url: '/api/proxy/pool/unbind', method: 'POST' },
   'get_account_proxy_binding': { url: '/api/proxy/pool/binding/:accountId', method: 'GET' },
+
+  // Financial Analytics & Hub
+  'get_financial_summary': { url: '/api/analytics/financial/summary', method: 'GET' },
+  'get_financial_chart_data': { url: '/api/analytics/financial/chart', method: 'GET' },
+  'get_financial_usage_details': { url: '/api/analytics/financial/details', method: 'GET' },
+  'refresh_financial_analytics': { url: '/api/analytics/financial/refresh', method: 'POST' },
+
+  // Degradation Diagnostics & Telemetry
+  'get_model_health_diagnostics': { url: '/api/analytics/diagnostics/health', method: 'GET' },
+  'get_official_benchmark_specs': { url: '/api/analytics/diagnostics/specs', method: 'GET' },
+  'get_discovered_antigravity_paths': { url: '/api/analytics/diagnostics/paths', method: 'GET' },
+  'add_custom_antigravity_path': { url: '/api/analytics/diagnostics/paths', method: 'POST' },
+  'run_stealth_canary_probe': { url: '/api/analytics/diagnostics/canary', method: 'POST' },
+  'export_forensic_dossier': { url: '/api/analytics/diagnostics/forensic', method: 'POST' },
 };
 
 export async function request<T>(cmd: string, args?: any): Promise<T> {

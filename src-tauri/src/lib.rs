@@ -626,7 +626,7 @@ pub fn run() {
             std::thread::spawn(|| {
                 tracing::info!("Starting background sync of AI analytics data lake...");
                 match modules::analytics_hub::refresh_all_analytics() {
-                    Ok((total, codex)) => tracing::info!("Analytics background sync completed: {} total records, {} codex", total, codex),
+                    Ok(report) => tracing::info!("Analytics background sync completed: {} (total inserted: {}, duration: {}ms)", report.message, report.total_inserted, report.duration_ms),
                     Err(e) => tracing::warn!("Analytics background sync error: {}", e),
                 }
             });

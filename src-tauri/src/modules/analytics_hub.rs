@@ -57,6 +57,24 @@ pub struct FinancialSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceStat {
+    pub source: String,          // "antigravity" | "cursor" | "codex" | "kiro"
+    pub scanned: usize,          // 读到的候选条数
+    pub inserted: usize,         // 写入 unified_token_usage 条数
+    pub skipped: usize,          // 本轮「读到但未写入」条数
+    pub error: Option<String>,   // 该源失败原因；成功为 None
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefreshReport {
+    pub sources: Vec<SourceStat>,
+    pub total_inserted: usize,
+    pub duration_ms: u64,
+    pub ok: bool,                // 全部源无 error 且 rollup 成功
+    pub message: String,         // 人类可读一行摘要
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeriodRollupItem {
     pub period_key: String,
     pub source: String,
@@ -386,12 +404,8 @@ pub fn sync_cursor_data(
             continue; // 文件未发生变动，跳过
         }
 
-        // 核心：SQLite 原生只读 URI 打开，杜绝锁死 Cursor
-        let uri = format!("file:{}?mode=ro", db_path.to_string_lossy());
-        let src_conn = match Connection::open_with_flags(
-            &uri,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-        ) {
+        // 核心：SQLite 跨平台只读 URI 打开（自动规避特殊字符与长路径截断），杜绝锁死 Cursor
+        let src_conn = match crate::modules::sqlite_uri::open_sqlite_ro(&db_path) {
             Ok(c) => c,
             Err(_) => continue,
         };
@@ -621,18 +635,43 @@ pub fn sync_codex_data(
     Ok(scanned_count)
 }
 
-/// 执行全量数据刷新 (Cursor + Codex + 预聚合持久化)
-pub fn refresh_all_analytics() -> Result<(usize, usize), String> {
+/// 执行全量数据刷新 (Cursor + Codex + Antigravity + Kiro + 预聚合持久化)
+pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
+    let t0 = std::time::Instant::now();
     let mut conn = open_analytics_db()?;
     let pricing = load_pricing_table();
 
-    let ag_count = crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing).unwrap_or(0);
-    let cur_count = sync_cursor_data(&mut conn, &pricing).unwrap_or(0);
-    let codex_count = sync_codex_data(&mut conn, &pricing).unwrap_or(0);
-    let _kiro_count = crate::modules::kiro_scanner::sync_kiro_data(&mut conn, &pricing).unwrap_or(0);
+    let mut sources = Vec::new();
+
+    // 1. Antigravity
+    match crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing) {
+        Ok(c) => sources.push(SourceStat { source: "antigravity".into(), scanned: c, inserted: c, skipped: 0, error: None }),
+        Err(e) => sources.push(SourceStat { source: "antigravity".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+    }
+
+    // 2. Cursor
+    match sync_cursor_data(&mut conn, &pricing) {
+        Ok(c) => sources.push(SourceStat { source: "cursor".into(), scanned: c, inserted: c, skipped: 0, error: None }),
+        Err(e) => sources.push(SourceStat { source: "cursor".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+    }
+
+    // 3. Codex
+    match sync_codex_data(&mut conn, &pricing) {
+        Ok(c) => sources.push(SourceStat { source: "codex".into(), scanned: c, inserted: c, skipped: 0, error: None }),
+        Err(e) => sources.push(SourceStat { source: "codex".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+    }
+
+    // 4. Kiro
+    match crate::modules::kiro_scanner::sync_kiro_data(&mut conn, &pricing) {
+        Ok(c) => sources.push(SourceStat { source: "kiro".into(), scanned: c, inserted: c, skipped: 0, error: None }),
+        Err(e) => sources.push(SourceStat { source: "kiro".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+    }
+
+    let total_inserted: usize = sources.iter().map(|s| s.inserted).sum();
+    let all_ok = sources.iter().all(|s| s.error.is_none());
 
     // 重新计算每日聚合持久表
-    conn.execute_batch(
+    if let Err(e) = conn.execute_batch(
         "
         INSERT OR REPLACE INTO financial_rollups (period_type, period_key, source, normalized_model, total_tokens, input_tokens, output_tokens, cached_tokens, total_cost_usd, total_cost_cny, request_count)
         SELECT 
@@ -650,11 +689,35 @@ pub fn refresh_all_analytics() -> Result<(usize, usize), String> {
         FROM unified_token_usage
         GROUP BY date_key, source, normalized_model;
         "
-    ).map_err(|e| format!("Failed to update rollups: {}", e))?;
+    ) {
+        return Ok(RefreshReport {
+            sources,
+            total_inserted,
+            duration_ms: t0.elapsed().as_millis() as u64,
+            ok: false,
+            message: format!("聚合表计算失败: {}", e),
+        });
+    }
 
     let _ = prune_expired_logs(&conn);
 
-    Ok((ag_count + cur_count, codex_count))
+    let summary_parts: Vec<String> = sources
+        .iter()
+        .map(|s| match &s.error {
+            Some(e) => format!("{}:失败({})", s.source, e),
+            None => format!("{}={}", s.source, s.inserted),
+        })
+        .collect();
+
+    let message = format!("同步完成：写入 {} 条（{}）", total_inserted, summary_parts.join(", "));
+
+    Ok(RefreshReport {
+        sources,
+        total_inserted,
+        duration_ms: t0.elapsed().as_millis() as u64,
+        ok: all_ok,
+        message,
+    })
 }
 
 /// 获取财务看板总览数据 (KPI 顶层数据卡片)

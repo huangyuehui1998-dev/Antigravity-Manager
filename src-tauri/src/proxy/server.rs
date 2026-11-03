@@ -1050,6 +1050,8 @@ impl AxumServer {
             )
             // OAuth (Web) - Admin 接口
             .route("/auth/url", get(admin_prepare_oauth_url_web))
+            // Analytics Hub & Model Diagnostics
+            .merge(crate::proxy::analytics_admin::analytics_admin_routes())
             // 应用管理特定鉴权层 (强制校验)
             .layer(axum::middleware::from_fn_with_state(
                 state.clone(),

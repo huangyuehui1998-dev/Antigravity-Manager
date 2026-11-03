@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { DollarSign, TrendingUp, Sparkles, RefreshCw, Layers, Clock, ArrowUpRight } from 'lucide-react';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { invoke } from '@tauri-apps/api/core';
+import { request as invoke } from '../utils/request';
+import { showToast } from '../components/common/ToastContainer';
 import { useChartTheme } from '../hooks/useChartTheme';
 
 interface FinancialSummary {
@@ -53,30 +54,32 @@ interface UnifiedUsageRecord {
   cost_cny: number;
 }
 
-export default function FinancialDashboard() {
+export default function FinancialDashboard({ active = true }: { active?: boolean }) {
   const chartTheme = useChartTheme();
   const [currency, setCurrency] = useState<'USD' | 'CNY'>('USD');
   const [timeRange, setTimeRange] = useState<number>(30);
   const [loading, setLoading] = useState(false);
   
-  const [summary, setSummary] = useState<FinancialSummary>({
-    total_tokens: 718070505,
-    total_cost_usd: 568.19,
-    total_cost_cny: 4102.33,
-    today_tokens: 2840000,
-    today_cost_usd: 14.20,
-    today_cost_cny: 102.52,
-    month_tokens: 182000000,
-    month_cost_usd: 156.40,
-    month_cost_cny: 1129.21,
-    saved_cost_usd: 522.73,
-    saved_cost_cny: 3774.11,
-    total_requests: 80,
-  });
+  const EMPTY_SUMMARY: FinancialSummary = {
+    total_tokens: 0,
+    total_cost_usd: 0,
+    total_cost_cny: 0,
+    today_tokens: 0,
+    today_cost_usd: 0,
+    today_cost_cny: 0,
+    month_tokens: 0,
+    month_cost_usd: 0,
+    month_cost_cny: 0,
+    saved_cost_usd: 0,
+    saved_cost_cny: 0,
+    total_requests: 0,
+  };
 
+  const [summary, setSummary] = useState<FinancialSummary>(EMPTY_SUMMARY);
   const [chartData, setChartData] = useState<PeriodRollupItem[]>([]);
   const [details, setDetails] = useState<UnifiedUsageRecord[]>([]);
-  const [totalRecords, setTotalRecords] = useState(80);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const lastSyncRef = useRef<number>(0);
 
   // 刷新全量数据
   const fetchData = async () => {
@@ -104,18 +107,33 @@ export default function FinancialDashboard() {
   const handleManualSync = async () => {
     setLoading(true);
     try {
-      await invoke('refresh_financial_analytics');
+      const report: any = await invoke('refresh_financial_analytics');
+      if (report?.message) {
+        showToast(report.message, 'success');
+      } else {
+        showToast('增量同步完成', 'success');
+      }
       await fetchData();
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Manual sync error:', e);
+      showToast(e?.message || '同步失败', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    invoke('refresh_financial_analytics').then(() => fetchData()).catch(() => fetchData());
-  }, [timeRange]);
+    if (!active) return;
+    const now = Date.now();
+    if (now - lastSyncRef.current > 60000) {
+      lastSyncRef.current = now;
+      invoke('refresh_financial_analytics')
+        .then(() => fetchData())
+        .catch(() => fetchData());
+    } else {
+      fetchData();
+    }
+  }, [timeRange, active]);
 
   // 格式化金额辅助函数
   const fmtMoney = (usd: number, cny: number) => {

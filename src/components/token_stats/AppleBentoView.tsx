@@ -193,7 +193,7 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
 
         const now = new Date();
         const buckets: { hourLabel: string; full: string; data: HourlyUsagePoint }[] = [];
-        let peak = 1;
+        let peak = 0;
         let total = 0;
         let peakLabel = '';
 
@@ -774,7 +774,7 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                                     {activeHourData.hourLabel} · {formatNumber(activeHourData.data.total_tokens)}
                                 </span>
                             ) : (
-                                t('token_stats.peak_and_total', '峰值: {{peak}} · 全天: {{total}}', { peak: peakHourLabel, total: formatNumber(totalPast24h) })
+                                totalPast24h > 0 ? t('token_stats.peak_and_total', '峰值: {{peak}} · 全天: {{total}}', { peak: peakHourLabel, total: formatNumber(totalPast24h) }) : t('token_stats.no_activity_24h', '过去 24 小时暂无调用记录')
                             )}
                         </span>
                     </div>
@@ -784,7 +784,7 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                         {hourBuckets.map((b, idx) => {
                             const isHovered = hoveredHourIdx === idx;
                             const hasValue = b.data.total_tokens > 0;
-                            const heightPct = hasValue ? Math.max(14, (b.data.total_tokens / maxHourTokens) * 100) : 0;
+                            const heightPct = hasValue && maxHourTokens > 0 ? Math.max(14, (b.data.total_tokens / maxHourTokens) * 100) : 0;
                             return (
                                 <div
                                     key={b.full}

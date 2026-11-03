@@ -31,6 +31,8 @@ pub struct ModelHealthReport {
     pub thinking_ratio: f32,
     pub diagnosis_summary: String,
     pub can_auto_failover: bool,
+    #[serde(default)]
+    pub sample_count: u32,
 }
 
 pub struct CanaryProbe;

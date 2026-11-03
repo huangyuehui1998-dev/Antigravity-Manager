@@ -24,7 +24,7 @@ pub async fn get_financial_usage_details(
 }
 
 #[tauri::command]
-pub async fn refresh_financial_analytics() -> Result<(usize, usize), String> {
+pub async fn refresh_financial_analytics() -> Result<analytics_hub::RefreshReport, String> {
     analytics_hub::refresh_all_analytics()
 }
 
@@ -66,47 +66,25 @@ pub async fn get_model_health_diagnostics(
     let spec = crate::modules::official_specs::find_matching_spec(&model)
         .unwrap_or_else(|| crate::modules::official_specs::get_official_specs()[0].clone());
 
-    // 默认采集最新流式指标 (支持被动流量画像)
-    let actual_tps = (spec.nominal_tps_min * 0.95).round();
-    let actual_ttft_ms = spec.nominal_ttft_ms_p50 + 50;
-    let expected_ttft_ms = crate::modules::degradation_diagnostics::calculate_expected_ttft(
-        1500, 500, model.contains("pro"), 40
-    );
-    let thinking_ratio = if spec.supports_thinking { 0.38 } else { 0.0 };
-
-    let (score, status, s_speed, s_intel, s_stab) = crate::modules::degradation_diagnostics::evaluate_health(
-        actual_tps,
-        spec.nominal_tps_min,
-        actual_ttft_ms,
-        expected_ttft_ms,
-        thinking_ratio,
-        spec.min_thinking_ratio,
-        spec.supports_thinking,
-        false,
-    );
-
-    let summary = format!(
-        "模型实测流速 {:.1} T/s (标称: {:.1}~{:.1} T/s), TTFT 时延 {}ms (预期: {}ms), 判定状态: {:?}",
-        actual_tps, spec.nominal_tps_min, spec.nominal_tps_max, actual_ttft_ms, expected_ttft_ms, status
-    );
-
+    // 严谨流式遥测真实指标：若尚无真实流式采样样本，诚实返回 N=0 样本不足状态，杜绝任何假满血/合成演示数据
     Ok(crate::modules::degradation_diagnostics::ModelHealthReport {
         account_id: account,
         model_name: spec.display_name,
-        exact_model_id: format!("{}-001", model),
-        health_score: score,
-        status,
-        speed_score: s_speed,
-        intel_score: s_intel,
-        stability_score: s_stab,
+        exact_model_id: model,
+        health_score: 0,
+        status: crate::modules::degradation_diagnostics::DegradationStatus::Nominal,
+        speed_score: 0.0,
+        intel_score: 0.0,
+        stability_score: 0.0,
         nominal_tps: spec.nominal_tps_min,
-        actual_tps,
-        tps_deviation_pct: ((actual_tps - spec.nominal_tps_min) / spec.nominal_tps_min) * 100.0,
-        actual_ttft_ms,
-        expected_ttft_ms,
-        thinking_ratio,
-        diagnosis_summary: summary,
-        can_auto_failover: true,
+        actual_tps: 0.0,
+        sample_count: 0,
+        tps_deviation_pct: 0.0,
+        actual_ttft_ms: 0,
+        expected_ttft_ms: 0,
+        thinking_ratio: 0.0,
+        diagnosis_summary: "暂无流式遥测样本，无法判定满血/降智 (N=0)".into(),
+        can_auto_failover: false,
     })
 }
 

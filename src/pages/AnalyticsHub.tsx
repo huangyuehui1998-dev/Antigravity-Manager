@@ -34,13 +34,13 @@ export const AnalyticsHub: React.FC = () => {
       {/* 单一物理滚动条 + Keep-Alive 内存常驻 */}
       <div className="flex-1 h-full overflow-hidden relative">
         <div className={`h-full w-full ${currentTab === 'financial' ? 'block' : 'hidden'}`}>
-          <FinancialDashboard />
+          <FinancialDashboard active={currentTab === 'financial'} />
         </div>
         <div className={`h-full w-full ${currentTab === 'tokens' ? 'block' : 'hidden'}`}>
           <TokenStats />
         </div>
         <div className={`h-full w-full ${currentTab === 'diagnostics' ? 'block' : 'hidden'}`}>
-          <ModelDiagnosticsDashboard />
+          <ModelDiagnosticsDashboard active={currentTab === 'diagnostics'} />
         </div>
         <div className={`h-full w-full ${currentTab === 'logs' ? 'block' : 'hidden'}`}>
           <Monitor />

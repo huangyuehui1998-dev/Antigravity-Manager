@@ -6,6 +6,7 @@ interface SpeedometerProps {
   nominalMaxTps: number;
   healthScore: number;
   status: string;
+  active?: boolean;
 }
 
 export const SpeedometerCanvas: React.FC<SpeedometerProps> = ({
@@ -14,6 +15,7 @@ export const SpeedometerCanvas: React.FC<SpeedometerProps> = ({
   nominalMaxTps,
   healthScore,
   status,
+  active = true,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const displayTpsRef = useRef<number>(currentTps || 0);
@@ -25,6 +27,13 @@ export const SpeedometerCanvas: React.FC<SpeedometerProps> = ({
   propsRef.current = { currentTps, nominalMinTps, nominalMaxTps, healthScore, status };
 
   useEffect(() => {
+    if (active === false) {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -185,7 +194,7 @@ export const SpeedometerCanvas: React.FC<SpeedometerProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
       if (observer) observer.disconnect();
     };
-  }, []);
+  }, [active]);
 
   return <canvas ref={canvasRef} className="block mx-auto" />;
 };
