@@ -120,13 +120,23 @@ const QuotaProtection = ({ config, onChange }: QuotaProtectionProps) => {
                                 {t('settings.quota_protection.monitored_models_desc')}
                             </p>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-4 gap-2" role="group" aria-label="监控模型列表">
                             {monitoredModelsOptions.map((model) => {
                                 const isSelected = config.monitored_models?.includes(model.id);
                                 return (
                                     <div
                                         key={model.id}
+                                        role="checkbox"
+                                        aria-checked={isSelected}
+                                        aria-label={`监控模型 ${model.label}`}
+                                        tabIndex={0}
                                         onClick={() => toggleModel(model.id)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                toggleModel(model.id);
+                                            }
+                                        }}
                                         className={`
                                             flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all duration-200
                                             ${isSelected

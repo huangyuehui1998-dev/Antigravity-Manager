@@ -87,13 +87,23 @@ const SmartWarmup: React.FC<SmartWarmupProps> = ({ config, onChange }) => {
                             <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
                                 {t('settings.warmup.monitored_models_label', '预热模型范围')}
                             </label>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-4 gap-2" role="group" aria-label="预热模型列表">
                                 {warmupModelsOptions.map((model) => {
                                     const isSelected = config.monitored_models?.includes(model.id);
                                     return (
                                         <div
                                             key={model.id}
+                                            role="checkbox"
+                                            aria-checked={isSelected}
+                                            aria-label={`预热模型 ${model.label}`}
+                                            tabIndex={0}
                                             onClick={() => toggleModel(model.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    toggleModel(model.id);
+                                                }
+                                            }}
                                             className={`
                                                 flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all duration-200
                                                 ${isSelected
