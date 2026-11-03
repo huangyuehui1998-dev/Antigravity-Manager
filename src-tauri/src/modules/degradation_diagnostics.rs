@@ -113,6 +113,8 @@ pub fn calculate_expected_ttft(
 }
 
 /// 综合健康评分计算引擎 (0 ~ 100)
+/// 【硬约束 M1 / P0-2】：调用前必须确保 sample_count >= 1！
+/// 若 sample_count == 0 时禁止调用本函数（会因为 actual_tps=0、s_intel=100、s_stability=100 虚假计算出 ~65 分及 Throttled 状态）。
 pub fn evaluate_health(
     actual_tps: f32,
     nominal_tps_min: f32,
@@ -125,6 +127,11 @@ pub fn evaluate_health(
 ) -> (u32, DegradationStatus, f32, f32, f32) {
     if is_substituted {
         return (0, DegradationStatus::ModelSubstituted, 0.0, 0.0, 0.0);
+    }
+
+    // 零样本守护：若无有效流式测速样本 (actual_tps == 0 && actual_ttft_ms == 0)，严禁伪造 Throttled ~65
+    if actual_tps <= 0.0 && actual_ttft_ms == 0 {
+        return (0, DegradationStatus::InsufficientSamples, 0.0, 0.0, 0.0);
     }
 
     // 速度评分 S_speed (0~100)

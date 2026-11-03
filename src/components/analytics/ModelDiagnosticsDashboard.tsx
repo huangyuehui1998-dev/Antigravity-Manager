@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { request as invoke } from '../../utils/request';
-import { Zap, HardDrive, FileText, RotateCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Zap, HardDrive, FileText, RotateCw, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import SpeedometerCanvas from './SpeedometerCanvas';
 
 interface OfficialSpec {
@@ -15,6 +15,7 @@ interface OfficialSpec {
   supports_thinking: boolean;
   min_thinking_ratio: number;
   description: string;
+  source?: string;
 }
 
 interface HealthReport {
@@ -46,7 +47,7 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
   const [report, setReport] = useState<HealthReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [canaryResult, setCanaryResult] = useState<any>(null);
-  const [autoFailover, setAutoFailover] = useState(true);
+  const [autoFailover, setAutoFailover] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -88,9 +89,15 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
 
   const handleRunCanary = async () => {
     try {
-      const res = await invoke('run_stealth_canary_probe');
+      const res: any = await invoke('run_stealth_canary_probe');
       setCanaryResult(res);
-      alert('已成功生成并调度拟真 TypeScript 状态机边界探针！上游 WAF 零感知，逻辑测试通过！');
+      if (res?.phase === 'verified_pass') {
+        alert('金丝雀探针执行并通过验真！');
+      } else if (res?.phase === 'generated') {
+        alert('已成功生成拟真 TypeScript 状态机边界探针（未对上游执行，待流式采样通道联通）。');
+      } else {
+        alert('探针生成就绪。');
+      }
     } catch (e: any) {
       alert(`金丝雀探针执行失败: ${e}`);
     }
@@ -110,7 +117,7 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
     }
   };
 
-  const activeSpec = specs.find((s) => s.exact_id_pattern.toLowerCase().includes(selectedModel.toLowerCase())) || specs[0];
+  const activeSpec = specs.find((s) => s.exact_id_pattern.toLowerCase().includes(selectedModel.toLowerCase())) || null;
 
   return (
     <div className="h-full w-full overflow-y-auto p-6 space-y-6 text-slate-100 bg-[#0B0F17]">
@@ -141,17 +148,22 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
       {/* 专题一：五级全域路径探测与跨电脑关联卡片 */}
       <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800/80 space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-            <HardDrive className="w-4 h-4" />
-            五级全域路径自动探测与关联 (Universal Discovery Level 1~5)
-          </span>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+              <HardDrive className="w-4 h-4" />
+              五级全域路径自动探测与关联 (Universal Discovery Level 1~5)
+            </span>
+            <span className="text-[10px] text-slate-400 mt-0.5">
+              路径已发现 · 遥测样本 N=0 · Canary 未验真
+            </span>
+          </div>
           {paths.length === 0 ? (
             <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700">
               ⚪ 未发现数据源 (N=0)
             </span>
           ) : (
-            <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-              🟢 已发现 {paths.length} 个数据源
+            <span className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+              📂 已定位 {paths.length} 处会话存储
             </span>
           )}
         </div>
@@ -242,27 +254,38 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
 
           <div className="space-y-2 text-xs font-mono">
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
-              <span className="text-slate-400">标称官方吞吐:</span>
-              <span className="text-white font-bold">{activeSpec?.nominal_tps_min ?? 120} ~ {activeSpec?.nominal_tps_max ?? 155} T/s</span>
+              <span className="text-slate-400">标称吞吐规格:</span>
+              <span className="text-white font-bold flex items-center gap-1">
+                {activeSpec ? `${activeSpec.nominal_tps_min} ~ ${activeSpec.nominal_tps_max} T/s` : '— (未匹配手册)'}
+                {activeSpec?.source === 'community_estimate' && (
+                  <span className="text-[10px] px-1 py-0.2 bg-amber-950/60 text-amber-300 border border-amber-800/80 rounded font-normal">
+                    社区预估
+                  </span>
+                )}
+              </span>
             </div>
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
               <span className="text-slate-400">实测瞬时流速:</span>
-              <span className="text-emerald-400 font-bold">{(report?.actual_tps ?? 0).toFixed(1)} T/s</span>
+              <span className={report && report.sample_count > 0 ? 'text-emerald-400 font-bold' : 'text-slate-500 font-bold'}>
+                {report && report.sample_count > 0 ? `${report.actual_tps.toFixed(1)} T/s` : '暂无样本 (N=0)'}
+              </span>
             </div>
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
               <span className="text-slate-400">标称偏离度:</span>
-              <span className={report && report.tps_deviation_pct < -25 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+              <span className={report && report.sample_count > 0 && report.tps_deviation_pct < -25 ? 'text-rose-400 font-bold' : report && report.sample_count > 0 ? 'text-emerald-400 font-bold' : 'text-slate-500 font-bold'}>
                 {!report || report.sample_count === 0 ? '暂无样本 (N=0)' : `${(report?.tps_deviation_pct ?? 0).toFixed(1)}% (${report?.status === 'Nominal' ? '满血极速' : '算力排队'})`}
               </span>
             </div>
             <div className="flex justify-between p-2 bg-slate-950/50 rounded">
               <span className="text-slate-400">TTFT 首字延迟:</span>
-              <span className="text-slate-200">{report?.actual_ttft_ms ? `${report.actual_ttft_ms}ms` : '--'} (标称 P50: {activeSpec?.nominal_ttft_ms_p50 ? `${activeSpec.nominal_ttft_ms_p50}ms` : '--'})</span>
+              <span className="text-slate-200">
+                {report && report.sample_count > 0 ? `${report.actual_ttft_ms}ms` : '--'} (标称 P50: {activeSpec?.nominal_ttft_ms_p50 ? `${activeSpec.nominal_ttft_ms_p50}ms` : '--'})
+              </span>
             </div>
           </div>
 
           <p className="text-[11px] text-slate-400 italic">
-            * 规格依据各模型官方技术白皮书与 API 手册，支持云端基准自动热校正。
+            * 官方规格依据白皮书基准，未公开型号标注社区测算推演，禁止静默偷换。
           </p>
         </div>
 
@@ -270,34 +293,44 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
         <div className="bg-slate-900/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between space-y-4">
           <div className="flex justify-between items-center border-b border-slate-800 pb-2">
             <span className="text-xs font-mono text-rose-400">🛡️ 谷歌降智权威评判</span>
-            <span className="text-xs font-bold text-white bg-slate-800 px-2 py-0.5 rounded">
-              综合评分: {report?.health_score ?? 0} / 100
+            <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+              {report && report.sample_count > 0 ? `综合评分: ${report.health_score} / 100` : '综合评分: — / 未评'}
             </span>
           </div>
 
           <div className="space-y-2 text-xs">
             <div className="flex items-center justify-between text-slate-300">
               <span>速度指数 (S_speed):</span>
-              <span className="font-mono text-emerald-400">{(report?.speed_score ?? 0).toFixed(0)}分</span>
+              <span className={`font-mono ${report && report.sample_count > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {report && report.sample_count > 0 ? `${report.speed_score.toFixed(0)}分` : '—'}
+              </span>
             </div>
             <div className="flex items-center justify-between text-slate-300">
               <span>智力保真 (S_intel):</span>
-              <span className="font-mono text-emerald-400">{(report?.intel_score ?? 0).toFixed(0)}分</span>
+              <span className={`font-mono ${report && report.sample_count > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {report && report.sample_count > 0 ? `${report.intel_score.toFixed(0)}分` : '—'}
+              </span>
             </div>
             <div className="flex items-center justify-between text-slate-300">
               <span>稳定性 (S_stability):</span>
-              <span className="font-mono text-emerald-400">{(report?.stability_score ?? 0).toFixed(0)}分</span>
+              <span className={`font-mono ${report && report.sample_count > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {report && report.sample_count > 0 ? `${report.stability_score.toFixed(0)}分` : '—'}
+              </span>
             </div>
           </div>
 
           <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">自动无感故障切号 (Failover):</span>
+              <div className="flex flex-col">
+                <span className="text-slate-400">自动无感故障切号 (Failover):</span>
+                <span className="text-[10px] text-amber-500/80">未启用 / 仅本地开关 (无后端接线)</span>
+              </div>
               <input
                 type="checkbox"
                 checked={autoFailover}
                 onChange={(e) => setAutoFailover(e.target.checked)}
-                className="toggle toggle-sm toggle-success"
+                className="toggle toggle-sm toggle-warning opacity-70"
+                title="未启用 / 仅本地开关"
               />
             </div>
             <button
@@ -308,10 +341,17 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
               🎯 运行拟真 TypeScript 金丝雀探针
             </button>
             {canaryResult && (
-              <div className="p-2 bg-emerald-950/80 border border-emerald-800 rounded text-[11px] text-emerald-300 flex items-center gap-1.5 font-mono">
-                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="truncate">金丝雀校验通过 (Trace: {canaryResult.trace_id?.slice(0, 8)}...)</span>
-              </div>
+              canaryResult.phase === 'verified_pass' ? (
+                <div className="p-2 bg-emerald-950/80 border border-emerald-800 rounded text-[11px] text-emerald-300 flex items-center gap-1.5 font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">金丝雀校验通过 (Trace: {canaryResult.trace_id?.slice(0, 8)}...)</span>
+                </div>
+              ) : (
+                <div className="p-2 bg-amber-950/60 border border-amber-800/80 rounded text-[11px] text-amber-300 flex items-center gap-1.5 font-mono">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">已生成探针 · 未执行 (Trace: {canaryResult.trace_id?.slice(0, 8)}...)</span>
+                </div>
+              )
             )}
             <button
               onClick={handleExportForensic}

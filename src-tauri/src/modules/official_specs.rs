@@ -15,6 +15,12 @@ pub struct OfficialModelSpec {
     pub supports_thinking: bool,
     pub min_thinking_ratio: f32,
     pub description: String,
+    #[serde(default = "default_spec_source")]
+    pub source: String,
+}
+
+fn default_spec_source() -> String {
+    "official_benchmark".to_string()
 }
 
 pub fn get_official_specs() -> Vec<OfficialModelSpec> {
@@ -31,6 +37,7 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             supports_thinking: true,
             min_thinking_ratio: 0.35,
             description: "具备端到端思维链的强逻辑推演模型，标称思考链占比 > 35%".to_string(),
+            source: "official_benchmark".to_string(),
         },
         OfficialModelSpec {
             display_name: "Gemini 3.8 Flash".to_string(),
@@ -43,7 +50,8 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             max_context_window: 1_048_576,
             supports_thinking: false,
             min_thinking_ratio: 0.0,
-            description: "谷歌旗舰极速流式交互模型，标称吞吐 120~155 T/s".to_string(),
+            description: "谷歌次世代旗舰模型（社区测算推演规格，非官方白皮书正式指标）".to_string(),
+            source: "community_estimate".to_string(),
         },
         OfficialModelSpec {
             display_name: "Gemini 3.1 Pro".to_string(),
@@ -56,6 +64,7 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             supports_thinking: false,
             min_thinking_ratio: 0.0,
             description: "谷歌高精度推理与超长上下文模型，标称吞吐 60~85 T/s".to_string(),
+            source: "official_benchmark".to_string(),
         },
         OfficialModelSpec {
             display_name: "Claude 3.7 Sonnet".to_string(),
@@ -68,6 +77,7 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             supports_thinking: true,
             min_thinking_ratio: 0.20,
             description: "Anthropic 顶级编码工程与混合推理模型，标称吞吐 75~95 T/s".to_string(),
+            source: "official_benchmark".to_string(),
         },
         OfficialModelSpec {
             display_name: "Claude Opus 5".to_string(),
@@ -79,7 +89,8 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             max_context_window: 200_000,
             supports_thinking: true,
             min_thinking_ratio: 0.40,
-            description: "深度哲学与高阶复杂架构模型，标称吞吐 40~60 T/s".to_string(),
+            description: "高阶复杂架构模型（社区测算推演规格，非官方白皮书正式指标）".to_string(),
+            source: "community_estimate".to_string(),
         },
         OfficialModelSpec {
             display_name: "xAI Grok 4.6".to_string(),
@@ -91,7 +102,8 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
             max_context_window: 128_000,
             supports_thinking: false,
             min_thinking_ratio: 0.0,
-            description: "xAI 高速实时交互模型，标称吞吐 90~125 T/s".to_string(),
+            description: "xAI 交互模型（社区测算推演规格，非官方白皮书正式指标）".to_string(),
+            source: "community_estimate".to_string(),
         },
     ]
 }

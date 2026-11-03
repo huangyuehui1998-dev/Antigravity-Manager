@@ -78,20 +78,24 @@ pub async fn get_model_health_diagnostics(
     let model = model_name.unwrap_or_else(|| "gemini-3.8-flash".to_string());
     let account = account_id.unwrap_or_else(|| "default_account".to_string());
 
-    let spec = crate::modules::official_specs::find_matching_spec(&model)
-        .unwrap_or_else(|| crate::modules::official_specs::get_official_specs()[0].clone());
+    let spec_opt = crate::modules::official_specs::find_matching_spec(&model);
+    let (display_name, nominal_tps) = match spec_opt {
+        Some(ref s) => (s.display_name.clone(), s.nominal_tps_min),
+        None => ("未匹配手册条目".to_string(), 0.0),
+    };
 
-    // 严谨流式遥测真实指标：若尚无真实流式采样样本，诚实返回 N=0 样本不足状态，杜绝任何假满血/合成演示数据
+    // 【硬约束 M1 / P0-2】：sample_count == 0 时禁止调用 evaluate_health！
+    // 严谨流式遥测真实指标：若尚无真实流式采样样本，诚实返回 N=0 样本不足状态，杜绝任何假满血/合成演示数据，禁止误判为 Throttled ~65
     Ok(crate::modules::degradation_diagnostics::ModelHealthReport {
         account_id: account,
-        model_name: spec.display_name,
+        model_name: display_name,
         exact_model_id: model,
         health_score: 0,
         status: crate::modules::degradation_diagnostics::DegradationStatus::InsufficientSamples,
         speed_score: 0.0,
         intel_score: 0.0,
         stability_score: 0.0,
-        nominal_tps: spec.nominal_tps_min,
+        nominal_tps,
         actual_tps: 0.0,
         sample_count: 0,
         tps_deviation_pct: 0.0,
@@ -108,7 +112,11 @@ pub async fn get_model_health_diagnostics(
 pub async fn run_stealth_canary_probe() -> Result<serde_json::Value, String> {
     let (prompt, trace_id) =
         crate::modules::degradation_diagnostics::CanaryProbe::generate_stealth_prompt();
+    // 抄自 tokps gate / Kong successes / 本仓：仅生成探针，未对上游执行与断言，诚实返回 phase: "generated"
+    // 严禁伪造 verified: true / passed: true
     Ok(serde_json::json!({
+        "phase": "generated",
+        "verified": false,
         "trace_id": trace_id,
         "prompt": prompt,
         "expected_answer": {"status": "resolved", "retryCount": 3, "flag": true},
@@ -145,7 +153,7 @@ pub async fn export_forensic_dossier(account_id: String) -> Result<serde_json::V
             "nominal_tps": 0.0,
             "sampling_window": "500ms sliding EWMA"
         },
-        "note": "当前账号暂无真实流式遥测取证样本 (N=0)，证据包已完成防篡改存证"
+        "note": "当前账号暂无真实流式遥测取证样本 (N=0)，仅供状态参考，非正式验真取证包"
     });
     Ok(payload)
 }
