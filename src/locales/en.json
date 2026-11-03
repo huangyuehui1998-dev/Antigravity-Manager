@@ -1,4 +1,9 @@
 {
+    "analytics": {
+        "diagnostics": {
+            "subtitle": "5-Tier Adaptive Path Discovery · Official Specs Cross-Check · Anti-Cheat Canary · Fail-Open"
+        }
+    },
     "common": {
         "loading": "Loading...",
         "empty": "Empty",

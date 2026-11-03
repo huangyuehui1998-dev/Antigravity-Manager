@@ -1,4 +1,9 @@
 {
+    "analytics": {
+        "diagnostics": {
+            "subtitle": "五级路径自适应探测 · 官方标称手册比对 · 金丝雀抗作弊 · Fail-Open 开路"
+        }
+    },
     "common": {
         "loading": "加载中...",
         "load_more": "加载更多",

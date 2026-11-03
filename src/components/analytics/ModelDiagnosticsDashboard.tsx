@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { request as invoke } from '../../utils/request';
 import { Zap, HardDrive, FileText, RotateCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import SpeedometerCanvas from './SpeedometerCanvas';
@@ -37,6 +38,7 @@ interface HealthReport {
 }
 
 export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ active = true }) => {
+  const { t } = useTranslation();
   const [paths, setPaths] = useState<string[]>([]);
   const [customPath, setCustomPath] = useState('');
   const [specs, setSpecs] = useState<OfficialSpec[]>([]);
