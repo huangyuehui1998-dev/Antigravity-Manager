@@ -320,8 +320,23 @@ pub fn sync_antigravity_data(
     let mut scanned_count = 0;
     let now_ms = chrono::Utc::now().timestamp_millis();
 
-    // 湖仓双库一致性自愈探测：若 token_stats.db 明显滞后于 unified_token_usage，触发全量回填
-    let needs_resync = if let Ok(ts_conn) = crate::modules::token_stats::connect_db() {
+    // S1 投影收敛（Commit B · 锁定主路径）：
+    // 湖仓双库一致性自愈探测：若 token_stats 滞后（ts_count < u_count/2）或发生膨胀漂移（|Δ|/hub > 1%），触发全量投影收敛
+    let needs_resync = if let Ok(mut ts_conn) = crate::modules::token_stats::connect_db() {
+        let ts_sum: i64 = ts_conn
+            .query_row(
+                "SELECT COALESCE(SUM(total_tokens), 0) FROM token_usage",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        let u_sum: i64 = dest_conn
+            .query_row(
+                "SELECT COALESCE(SUM(total_tokens), 0) FROM unified_token_usage WHERE source = 'Antigravity'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         let ts_count: i64 = ts_conn
             .query_row("SELECT COUNT(*) FROM token_usage", [], |r| r.get(0))
             .unwrap_or(0);
@@ -332,7 +347,19 @@ pub fn sync_antigravity_data(
                 |r| r.get(0),
             )
             .unwrap_or(0);
-        u_count > 100 && ts_count < u_count / 2
+
+        let is_lagging = u_count > 100 && ts_count < u_count / 2;
+        let is_inflated = u_sum > 0 && ((ts_sum - u_sum).abs() as f64 / u_sum as f64) > 0.01;
+        if is_inflated {
+            // S1 inflation converge: 清空投影目标，避免历史重扫膨胀，重新由 hub 真实源投射
+            let _ = ts_conn.execute("DELETE FROM token_usage", []);
+            let _ = ts_conn.execute("DELETE FROM token_stats_hourly", []);
+            let _ = dest_conn.execute(
+                "DELETE FROM sync_checkpoints WHERE source_key LIKE 'antigravity:%'",
+                [],
+            );
+        }
+        is_lagging || is_inflated
     } else {
         false
     };
