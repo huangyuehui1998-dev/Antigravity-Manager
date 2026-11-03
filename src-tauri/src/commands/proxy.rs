@@ -10,9 +10,20 @@ use tokio::sync::RwLock;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyStatus {
     pub running: bool,
+    pub admin_bound: bool,
+    pub forwarding: bool,
     pub port: u16,
     pub base_url: String,
     pub active_accounts: usize,
+}
+
+fn is_admin_bound(state: &ProxyServiceState) -> bool {
+    state
+        .admin_server
+        .try_read()
+        .ok()
+        .and_then(|g| g.as_ref().map(|_| true))
+        .unwrap_or(false)
 }
 
 /// 反代服务全局状态
@@ -195,6 +206,8 @@ pub async fn internal_start_proxy_service(
         tracing::warn!("沒有可用賬號，反代邏輯將暫停，請通過管理界面添加。");
         return Ok(ProxyStatus {
             running: false,
+            admin_bound: is_admin_bound(&state),
+            forwarding: false,
             port: config.port,
             base_url: format!("http://127.0.0.1:{}", config.port),
             active_accounts: 0,
@@ -226,6 +239,8 @@ pub async fn internal_start_proxy_service(
     // 但其实我们可以直接手动掉，或者相信 guard
     Ok(ProxyStatus {
         running: true,
+        admin_bound: true,
+        forwarding: true,
         port: config.port,
         base_url: format!("http://127.0.0.1:{}", config.port),
         active_accounts,
@@ -356,10 +371,14 @@ pub async fn stop_proxy_service(state: State<'_, ProxyServiceState>) -> Result<(
 /// 获取反代服务状态
 #[tauri::command]
 pub async fn get_proxy_status(state: State<'_, ProxyServiceState>) -> Result<ProxyStatus, String> {
+    let admin_listening = is_admin_bound(&state);
+
     // 优先检查启动标志，避免被写锁阻塞
     if state.starting.load(Ordering::SeqCst) {
         return Ok(ProxyStatus {
             running: false, // 逻辑上还没运行
+            admin_bound: admin_listening,
+            forwarding: false,
             port: 0,
             base_url: "starting".to_string(), // 给前端标识
             active_accounts: 0,
@@ -371,14 +390,21 @@ pub async fn get_proxy_status(state: State<'_, ProxyServiceState>) -> Result<Pro
 
     match lock_res {
         Ok(instance_lock) => match instance_lock.as_ref() {
-            Some(instance) => Ok(ProxyStatus {
-                running: true,
-                port: instance.config.port,
-                base_url: format!("http://127.0.0.1:{}", instance.config.port),
-                active_accounts: instance.token_manager.len(),
-            }),
+            Some(instance) => {
+                let forwarding = instance.token_manager.len() > 0;
+                Ok(ProxyStatus {
+                    running: forwarding,
+                    admin_bound: true,
+                    forwarding,
+                    port: instance.config.port,
+                    base_url: format!("http://127.0.0.1:{}", instance.config.port),
+                    active_accounts: instance.token_manager.len(),
+                })
+            }
             None => Ok(ProxyStatus {
                 running: false,
+                admin_bound: admin_listening,
+                forwarding: false,
                 port: 0,
                 base_url: String::new(),
                 active_accounts: 0,
@@ -388,6 +414,8 @@ pub async fn get_proxy_status(state: State<'_, ProxyServiceState>) -> Result<Pro
             // 如果拿不到锁，说明正在进行写操作（可能是正在启动或停止中）
             Ok(ProxyStatus {
                 running: false,
+                admin_bound: admin_listening,
+                forwarding: false,
                 port: 0,
                 base_url: "busy".to_string(),
                 active_accounts: 0,

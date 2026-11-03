@@ -835,6 +835,7 @@
         "status": {
             "running": "服务运行中",
             "stopped": "服务已停止",
+            "admin_listening": "管理面已监听 · 转发未启用",
             "accounts_available": "{{count}} 个账号可用",
             "processing": "处理中..."
         },

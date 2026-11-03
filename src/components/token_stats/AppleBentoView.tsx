@@ -641,8 +641,10 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                         </div>
 
                         <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 dark:text-gray-500 pt-2 border-t border-black/[0.04] dark:border-base-200">
-                            <span>{t('token_stats.load_balance_ready', '负载均衡就绪')}</span>
-                            <span className="text-emerald-500 font-medium">{t('token_stats.smooth_operation', '100% 顺畅')}</span>
+                            <span>{(summary?.total_tokens || 0) > 0 ? t('token_stats.load_balance_ready', '负载均衡就绪') : t('token_stats.no_dispatch_data', '暂无调度数据')}</span>
+                            <span className={(summary?.total_tokens || 0) > 0 ? "text-emerald-500 font-medium" : "text-gray-400 font-medium"}>
+                                {(summary?.total_tokens || 0) > 0 ? t('token_stats.smooth_operation', '100% 顺畅') : '—'}
+                            </span>
                         </div>
                     </div>
                 </div>

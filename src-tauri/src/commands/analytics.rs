@@ -115,7 +115,7 @@ pub async fn export_forensic_dossier(account_id: String) -> Result<serde_json::V
         "report_id": report_id,
         "account_id": account_id,
         "timestamp": now,
-        "audit_authority": "Antigravity Model Diagnostic Engine (V5.3.0)",
+        "audit_authority": "Antigravity Model Diagnostic Engine (V5.3.1)",
         "sample_count": 0,
         "conformance_status": "⚪ INSUFFICIENT_TELEMETRY_SAMPLES (N=0)",
         "exact_model_verification": {

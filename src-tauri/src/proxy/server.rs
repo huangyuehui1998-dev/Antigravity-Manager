@@ -2120,8 +2120,11 @@ async fn admin_get_proxy_status(
     let active_accounts = state.token_manager.len();
 
     let is_running = { *state.is_running.read().await };
+    let forwarding = is_running && active_accounts > 0;
     Ok(Json(serde_json::json!({
-        "running": is_running,
+        "running": forwarding,
+        "admin_bound": true,
+        "forwarding": forwarding,
         "port": state.port,
         "base_url": format!("http://127.0.0.1:{}", state.port),
         "active_accounts": active_accounts,

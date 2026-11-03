@@ -401,9 +401,10 @@ const TokenStats: React.FC = () => {
     // 缓存命中率与节约成本估算
     const cacheMetrics = useMemo(() => {
         if (!summary || summary.total_tokens === 0) return { hitRate: 0, savings: 0 };
-        const totalInput = summary.total_input_tokens;
-        const cached = summary.total_cached_tokens;
-        const hitRate = totalInput > 0 ? (cached / totalInput) * 100 : 0;
+        const totalInput = summary.total_input_tokens || 0;
+        const cached = summary.total_cached_tokens || 0;
+        const inclusiveDenom = totalInput >= cached ? totalInput : totalInput + cached;
+        const hitRate = inclusiveDenom > 0 ? Math.min(100, Math.max(0, (cached / inclusiveDenom) * 100)) : 0;
         // 估算节约：假设平均每 1M 缓存相比直接输入节省约 $1.50
         const savings = (cached * 1.5) / 1_000_000;
         return { hitRate, savings };
@@ -1494,8 +1495,8 @@ const TokenStats: React.FC = () => {
                                                 <td className="py-2.5 px-3 text-right font-mono font-semibold text-gray-900 dark:text-base-content">
                                                     {formatNumber(model.total_tokens)}
                                                 </td>
-                                                <td className="py-2.5 px-3 text-right font-mono text-gray-500 dark:text-gray-400">
-                                                    {percentage}%
+                                                <td className="py-2.5 px-3 text-right font-mono text-gray-500 dark:text-gray-400 tabular-nums">
+                                                    {`${percentage}%`}
                                                 </td>
                                                 <td className="py-2.5 px-3 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">
                                                     ${cost.toFixed(2)}

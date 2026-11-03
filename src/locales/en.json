@@ -844,6 +844,7 @@
         "status": {
             "running": "Service Running",
             "stopped": "Service Stopped",
+            "admin_listening": "Admin listening · Forwarding paused",
             "accounts_available": "{{count}} Accounts Available",
             "processing": "Processing..."
         },

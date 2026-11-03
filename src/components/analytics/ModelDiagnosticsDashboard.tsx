@@ -120,7 +120,10 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
             全电脑五级自适应探测、谷歌降智评判与实时流速遥测
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            全盘 100% 自动感知关联 · 官方标称手册实时比对 · 拟真金丝雀抗作弊 · 故障安全 Fail-Open 开路
+            {t(
+              'analytics.diagnostics.subtitle',
+              '五级路径自适应探测 · 官方标称手册比对 · 金丝雀抗作弊 · Fail-Open 开路'
+            )}
           </p>
         </div>
         <button

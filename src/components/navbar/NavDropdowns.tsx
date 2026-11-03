@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, MoreVertical, Sun, Moon, LogOut, Minimize2 } from 'lucide-react';
+import { ChevronDown, MoreVertical, Sun, Moon, LogOut, Minimize2, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { NavItem, Language } from './constants';
 import { isTauri } from '../../utils/env';
@@ -242,6 +242,16 @@ export function MoreDropdown({
                         <Minimize2 className="w-4 h-4" />
                         <span>{t('nav.mini_view', 'Mini View')}</span>
                     </button>
+
+                    {/* 系统设置 */}
+                    <Link
+                        to="/settings"
+                        onClick={() => setIsOpen(false)}
+                        className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-base-100 transition-colors text-gray-700 dark:text-gray-300"
+                    >
+                        <Settings className="w-4 h-4" />
+                        <span>{t('nav.settings', '系统设置')}</span>
+                    </Link>
 
                     {/* 主题切换 */}
                     <button

@@ -136,13 +136,13 @@ export function GroupQuotaCard({ summary, liveLimit, isProtected, fullWidth }: G
                             </div>
 
                             <span className={cn(
-                                "font-bold text-right min-w-[28px] flex items-center justify-end gap-0.5",
+                                "font-bold text-right shrink-0 tabular-nums min-w-[2.75rem] flex items-center justify-end gap-0.5",
                                 isUnavailable ? "text-rose-700 dark:text-rose-300" : getTextColorClass(fiveHourPercentage)
                             )}>
                                 {isProtected && (
                                     <span title={t('accounts.quota_protected')}><Lock className="w-2.5 h-2.5 text-amber-500" /></span>
                                 )}
-                                {`${fiveHourPercentage}%`}
+                                {`${Math.round(fiveHourPercentage)}%`}
                             </span>
                         </div>
                     </div>
@@ -214,13 +214,13 @@ export function GroupQuotaCard({ summary, liveLimit, isProtected, fullWidth }: G
                             </div>
 
                             <span className={cn(
-                                "font-bold text-right min-w-[28px] flex items-center justify-end gap-0.5",
+                                "font-bold text-right shrink-0 tabular-nums min-w-[2.75rem] flex items-center justify-end gap-0.5",
                                 summary.isWeeklyExhausted ? "text-rose-700 dark:text-rose-300" : getTextColorClass(weeklyPercentage)
                             )}>
                                 {fiveHour === undefined && isProtected && (
                                     <span title={t('accounts.quota_protected')}><Lock className="w-2.5 h-2.5 text-amber-500" /></span>
                                 )}
-                                {weeklyPercentage}%
+                                {`${Math.round(weeklyPercentage)}%`}
                             </span>
                         </div>
                     </div>

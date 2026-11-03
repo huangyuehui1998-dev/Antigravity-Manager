@@ -50,6 +50,8 @@ import { RequestDetailModal, ProxyRequestLog } from '../components/proxy/Request
 
 interface ProxyStatus {
     running: boolean;
+    admin_bound?: boolean;
+    forwarding?: boolean;
     port: number;
     base_url: string;
     active_accounts: number;
@@ -1926,21 +1928,41 @@ print(response.choices[0].message.content)`;
                                     </p>
 
                                     {/* 监听端口下方空位：服务运行状态指示卡片 */}
-                                    <div className="mt-2.5 p-2 rounded-lg border border-gray-200/80 dark:border-base-300/80 bg-gray-50/70 dark:bg-base-200/50 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2.5 h-2.5 rounded-full ${status.running ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50 animate-pulse' : 'bg-gray-400 dark:bg-gray-500'}`} />
-                                            <span className={`text-xs font-semibold ${status.running ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                {status.running
-                                                    ? `${t('proxy.status.running')} (${status.active_accounts} ${t('common.accounts')})`
-                                                    : t('proxy.status.stopped')}
-                                            </span>
-                                        </div>
-                                        {status.running && (
-                                            <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate max-w-[130px]" title={status.base_url || `http://127.0.0.1:${appConfig.proxy.port || 8045}`}>
-                                                {status.base_url || `http://127.0.0.1:${appConfig.proxy.port || 8045}`}
-                                            </span>
-                                        )}
-                                    </div>
+                                    {(() => {
+                                        const forwarding = status.forwarding ?? status.running;
+                                        const adminBound = status.admin_bound ?? false;
+                                        const dotClass = forwarding
+                                            ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50 animate-pulse'
+                                            : adminBound
+                                                ? 'bg-amber-500 shadow-xs shadow-amber-500/40'
+                                                : 'bg-gray-400 dark:bg-gray-500';
+                                        const textClass = forwarding
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : adminBound
+                                                ? 'text-amber-600 dark:text-amber-400'
+                                                : 'text-gray-500 dark:text-gray-400';
+                                        const label = forwarding
+                                            ? `${t('proxy.status.running')} (${status.active_accounts} ${t('common.accounts')})`
+                                            : adminBound
+                                                ? t('proxy.status.admin_listening', '管理面已监听 · 转发未启用')
+                                                : t('proxy.status.stopped');
+
+                                        return (
+                                            <div className="mt-2.5 p-2 rounded-lg border border-gray-200/80 dark:border-base-300/80 bg-gray-50/70 dark:bg-base-200/50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-2.5 h-2.5 rounded-full ${dotClass}`} />
+                                                    <span className={`text-xs font-semibold ${textClass}`}>
+                                                        {label}
+                                                    </span>
+                                                </div>
+                                                {(forwarding || adminBound) && (
+                                                    <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate max-w-[130px]" title={status.base_url || `http://127.0.0.1:${appConfig.proxy.port || 8045}`}>
+                                                        {status.base_url || `http://127.0.0.1:${appConfig.proxy.port || 8045}`}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">

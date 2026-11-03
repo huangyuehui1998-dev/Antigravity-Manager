@@ -1,4 +1,5 @@
-import { Sun, Moon, LogOut, Minimize2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sun, Moon, LogOut, Minimize2, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LanguageDropdown, MoreDropdown } from './NavDropdowns';
 import { LANGUAGES } from './constants';
@@ -73,6 +74,15 @@ export function NavSettings({
                     languages={LANGUAGES}
                     onLanguageChange={onLanguageChange}
                 />
+
+                {/* 系统设置按钮 */}
+                <Link
+                    to="/settings"
+                    className="w-10 h-10 rounded-full bg-gray-100 dark:bg-base-200 hover:bg-gray-200 dark:hover:bg-base-100 flex items-center justify-center transition-colors text-gray-700 dark:text-gray-300"
+                    title={t('nav.settings', '系统设置')}
+                >
+                    <Settings className="w-5 h-5" />
+                </Link>
 
                 {/* 登出按钮 - 仅 Web 模式显示 */}
                 {!isTauri() && (

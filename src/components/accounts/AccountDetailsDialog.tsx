@@ -249,8 +249,8 @@ export default function AccountDetailsDialog({ account, onClose, onUpdatePriorit
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md shrink-0 ${badgeColor}`}>
-                                                        {model.percentage}%
+                                                    <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md shrink-0 tabular-nums min-w-[2.75rem] text-right ${badgeColor}`}>
+                                                        {`${Math.round(model.percentage)}%`}
                                                     </span>
                                                 </div>
 
@@ -309,8 +309,8 @@ export default function AccountDetailsDialog({ account, onClose, onUpdatePriorit
                                                             <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider font-mono">
                                                                 {bucket.window}
                                                             </span>
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${bColor}`}>
-                                                                {percentage}%
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono shrink-0 tabular-nums min-w-[2.75rem] text-right ${bColor}`}>
+                                                                {`${percentage}%`}
                                                             </span>
                                                         </div>
                                                         {/* Progress bar */}

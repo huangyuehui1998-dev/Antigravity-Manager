@@ -1,5 +1,5 @@
 # Antigravity Tools 🚀
-> Professional Account Management & Protocol Proxy System for AI Services (v5.3.0)
+> Professional Account Management & Protocol Proxy System for AI Services (v5.3.1)
 
 <div align="center">
   <img src="public/icon.png" width="100" height="100" alt="Antigravity Tools Logo">
@@ -11,7 +11,7 @@
       <img src="https://img.shields.io/github/v/release/huangyuehui1998-dev/Antigravity-Manager?color=blue&style=flat-square" alt="GitHub release">
     </a>
     <a href="https://github.com/huangyuehui1998-dev/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-5.3.0-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-5.3.1-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -496,7 +496,8 @@ In clients that support OpenAI protocol (e.g., Cherry Studio), you can configure
 
 ## 📝 Changelog
 
-> Latest version **v5.3.0** (2026-11-03): Universal Analytics Hub complete honesty refactor: eliminated all synthetic fallback metrics ($522.73, 718M tokens, 135 TPS); unified cross-platform SQLite RO URI normalization with Windows drive & UNC sanitization; fixed Kiro scanner checkpoint advancing bug; integrated Web API routes & transparent IPC command mapping; activated Keep-Alive tab power-saving and silent token sync.
+> Latest version **v5.3.1** (2026-11-03): Comprehensive UI walkthrough stabilization: quota percentage single-text-node rendering eliminating Windows DirectWrite line wraps; proxy two-tier truth state (`admin_bound` vs `forwarding`) accurately distinguishing port listening from active AI forwarding; honest diagnostics copy removing marketing exaggeration; Bento empty state scheduling gating; system settings accessible from navigation controls; and inclusive cache hit rate denominator clamping.
+> Previous version **v5.3.0** (2026-11-03): Universal Analytics Hub complete honesty refactor: eliminated all synthetic fallback metrics ($522.73, 718M tokens, 135 TPS); unified cross-platform SQLite RO URI normalization with Windows drive & UNC sanitization; fixed Kiro scanner checkpoint advancing bug; integrated Web API routes & transparent IPC command mapping; activated Keep-Alive tab power-saving and silent token sync.
 > Previous version **v5.2.0** (2026-11-02): Universal five-tier cross-platform Antigravity session path discovery engine across all drives (C:, D:, E:, WSL2, portable, registry, env contracts); real-time upstream model degradation canary probe & diagnostic telemetry engine comparing physical model ID, stream throughput (TPS), first-token latency (TTFT), and thinking ratio against official specs knowledge base; high-precision Nano-USD ($10^{-9}$ USD) integer billing engine eliminating IEEE 754 floating-point drift; retina High-DPI speedometer dashboard with tab power-saving and jitter-free damping.
 
 > Previous version **v5.1.0** (2026-11-01): Completely resolved Windows CJK glyph DirectWrite collision bug by physically isolating monospace numbers from sans-serif Chinese glyphs (Fixes #3742); redesigned account table action column into a streamlined 3-tier capsule interaction (primary switch, quick refresh, and contextual menu), saving 50% width and preventing accidental account deletions (Fixes #3743); native Kiro scanner integration (`kiro_scanner`) streaming Protobuf and SQLite usage data directly into `analytics_hub.db` with multi-period cost metrics (Fixes #3744); full suite of zero-loss cross-device data migration tools and portable USB mode (`ABV_DATA_DIR`); fortified pre-push security defenses ensuring zero credential leakage.

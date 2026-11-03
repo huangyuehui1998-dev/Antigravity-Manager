@@ -1,5 +1,5 @@
 # Antigravity Tools 🚀
-> 专业级 AI 账号管理与协议代理系统 (v5.3.0)
+> 专业级 AI 账号管理与协议代理系统 (v5.3.1)
 
 <div align="center">
   <img src="public/icon.png" width="100" height="100" alt="Antigravity Tools Logo">
@@ -11,7 +11,7 @@
       <img src="https://img.shields.io/github/v/release/huangyuehui1998-dev/Antigravity-Manager?color=blue&style=flat-square" alt="GitHub release">
     </a>
     <a href="https://github.com/huangyuehui1998-dev/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-5.3.0-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-5.3.1-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -497,7 +497,8 @@ response = client.chat.completions.create(
 
 ## 📝 更新日志
 
-> 最新版本 **v5.3.0**（2026-11-03）：数据中枢 Analytics Hub 全真值重构：彻底清退所有前端硬编码虚假指标（$522.73、7.18 亿 Tokens、135 TPS 等占位假值）；统一跨平台只读 SQLite URI 转换规范，彻底根除 Windows 盘符与 UNC 异常；修复 Kiro 扫描器同步检查点提前提交缺陷；打通 Web 模式完整 HTTP 路由与透明 COMMAND_MAPPING；支持 Keep-Alive 多标签离屏节能与用量画像静默同步。
+> 最新版本 **v5.3.1**（2026-11-03）：全盘 UI 走查深度加固：配额百分比单 Text 节点渲染彻底杜绝 Windows DirectWrite 换行错位；反代服务二元真值化状态（`admin_bound` 与 `forwarding`）精准区分端口监听与 AI 转发就绪；诊断副标题清退营销夸大文案；AppleBento 看板空态调度守卫；辅助控制区与更多菜单补齐系统设置入口；缓存命中率分母包含性修正与 [0, 100] 绝对钳位。
+> 上一版本 **v5.3.0**（2026-11-03）：数据中枢 Analytics Hub 全真值重构：彻底清退所有前端硬编码虚假指标（$522.73、7.18 亿 Tokens、135 TPS 等占位假值）；统一跨平台只读 SQLite URI 转换规范，彻底根除 Windows 盘符与 UNC 异常；修复 Kiro 扫描器同步检查点提前提交缺陷；打通 Web 模式完整 HTTP 路由与透明 COMMAND_MAPPING；支持 Keep-Alive 多标签离屏节能与用量画像静默同步。
 > 上一版本 **v5.2.0**（2026-11-02）：发布全域跨盘五级自适应 Antigravity 数据源探测引擎（全面覆盖 C:、D:、E: 全驱动器、WSL2、便携绿色目录、注册表与环境契约）；新增上游模型降智诊断与拟真 Reducer 金丝雀探针，精准核验物理模型真实度、实时流速 (TPS)、首字延迟 (TTFT) 与思考链占比并与官方技术手册基准对齐；集成纳美元 ($10^{-9}$ USD) 高精整数计费引擎，彻底根除 IEEE 754 浮点累加漂移；推出视网膜级 High-DPI 仪表盘与离屏节能调度。
 
 > 上一版本 **v5.1.0**（2026-11-01）：彻底修复 Windows CJK 汉字 DirectWrite 挤压重叠 bug，物理隔离中文字距与等宽数字排版 (Fixes #3742)；账号列表操作列重构为 3 级现代交互胶囊（高频主操作 `[切换]`、快捷 `[刷新]`、更多功能菜单 `[···]`），列宽释放 50% 并加入防误删二级确认保护 (Fixes #3743)；新增 Kiro 账号与用量全自动原生扫描器 (`kiro_scanner`)，打通 Protobuf/SQLite 会话流水并无缝入湖 `analytics_hub.db`，统一多周期用量与金额核算 (Fixes #3744)；全套跨设备数据无损承接与便携免安装发布套件，支持随 U 盘即插即用或通过迁移助手一键导入/导出所有历史账号凭据与数据库；实施严格的 Pre-push 安全白盒审计防线。

@@ -121,8 +121,8 @@ export function QuotaItem({ label, percentage, resetTime, isProtected, liveLimit
 
                 {/* Percentage */}
                 <span className={cn(
-                    "text-right font-bold transition-colors flex items-center justify-end gap-0.5 shrink-0",
-                    showLiveIssue ? "min-w-[58px]" : "w-[28px]",
+                    "text-right font-bold transition-colors flex items-center justify-end gap-0.5 shrink-0 tabular-nums",
+                    showLiveIssue ? "min-w-[58px]" : "min-w-[2.75rem]",
                     showLiveIssue ? (isUnavailable ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300") : getTextColorClass(percentage)
                 )}>
                     {isProtected && (
@@ -140,7 +140,7 @@ export function QuotaItem({ label, percentage, resetTime, isProtected, liveLimit
                             {liveStatus}
                         </span>
                     )}
-                    {percentage}%
+                    {`${Math.round(percentage)}%`}
                 </span>
             </div>
         </div>
