@@ -14,6 +14,7 @@ struct ErrorResponse {
 
 #[derive(Deserialize)]
 pub struct FinancialChartQuery {
+    #[serde(alias = "limitDays")]
     pub limit_days: Option<u32>,
 }
 
@@ -25,6 +26,10 @@ pub struct FinancialDetailsQuery {
 
 #[derive(Deserialize)]
 pub struct DiagnosticsHealthQuery {
+    #[serde(alias = "modelName")]
+    pub model_name: Option<String>,
+    #[serde(alias = "accountId")]
+    pub account_id: Option<String>,
     pub hours: Option<u32>,
 }
 
@@ -73,7 +78,7 @@ async fn admin_refresh_financial_analytics() -> Result<impl IntoResponse, (Statu
 async fn admin_get_model_health_diagnostics(
     Query(q): Query<DiagnosticsHealthQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
-    match crate::commands::analytics::get_model_health_diagnostics(q.hours).await {
+    match crate::commands::analytics::get_model_health_diagnostics(q.model_name, q.account_id).await {
         Ok(res) => Ok(Json(res)),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: e }))),
     }

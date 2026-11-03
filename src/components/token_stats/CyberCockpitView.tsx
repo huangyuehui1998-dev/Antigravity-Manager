@@ -268,7 +268,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
             hourBuckets: buckets,
             maxHourTokens: peak,
             peakHourLabel: peak > 0 ? peakHour : t('token_stats.no_peak', '暂无峰值'),
-            troughHourLabel: troughLabel !== '--:--' ? troughLabel : '04:00',
+            troughHourLabel: peak > 0 ? (troughLabel !== '--:--' ? troughLabel : '--:--') : t('token_stats.no_trough', '暂无低谷'),
         };
     }, [hourlyData]);
 

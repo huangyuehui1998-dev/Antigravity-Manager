@@ -89,7 +89,7 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
       const sum = await invoke<FinancialSummary>('get_financial_summary');
       if (sum) setSummary(sum);
 
-      const chart = await invoke<PeriodRollupItem[]>('get_financial_chart_data', { limitDays: timeRange });
+      const chart = await invoke<PeriodRollupItem[]>('get_financial_chart_data', { limitDays: timeRange, limit_days: timeRange });
       if (chart) setChartData(chart);
 
       const [list, total] = await invoke<[UnifiedUsageRecord[], number]>('get_financial_usage_details', { limit: 100, offset: 0 });
@@ -97,8 +97,9 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
         setDetails(list);
         setTotalRecords(total);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('IPC query fallback:', e);
+      showToast(e?.message || '获取财务数据失败', 'error');
     } finally {
       setLoading(false);
     }
@@ -288,8 +289,14 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
           <span className="text-xs opacity-50">按日聚合统计 (基于真实模型计价快照)</span>
         </div>
 
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        {processedChart.length === 0 ? (
+          <div className="h-72 w-full flex flex-col items-center justify-center text-sm opacity-40 space-y-2">
+            <TrendingUp className="w-8 h-8 stroke-[1.5]" />
+            <span>暂无时序走势数据 (N=0)</span>
+          </div>
+        ) : (
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={processedChart}>
               <defs>
                 <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -308,6 +315,7 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        )}
       </div>
 
       {/* 虚拟滚动长列表明细表格 */}
@@ -331,8 +339,15 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
           <div className="col-span-2 text-right">等值价值 ({currency})</div>
         </div>
 
-        {/* 虚拟滚动列表主体 */}
-        <div ref={parentRef} className="h-96 overflow-auto divide-y divide-base-200">
+        {/* 虚拟滚动列表主体 / 空态 */}
+        {details.length === 0 ? (
+          <div className="h-64 flex flex-col items-center justify-center text-sm opacity-50 space-y-2">
+            <Layers className="w-10 h-10 stroke-[1.5] opacity-40" />
+            <p className="font-medium">暂无全电脑调用流水记录 (N=0)</p>
+            <p className="text-xs opacity-70">发起 Cursor / Codex / 网关调用后将自动增量入湖</p>
+          </div>
+        ) : (
+          <div ref={parentRef} className="h-96 overflow-auto divide-y divide-base-200">
           <div
             style={{
               height: `${rowVirtualizer.getTotalSize()}px`,
@@ -375,6 +390,7 @@ export default function FinancialDashboard({ active = true }: { active?: boolean
             })}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

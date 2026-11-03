@@ -191,11 +191,7 @@ pub fn load_pricing_table() -> HashMap<String, PricingEntry> {
     if let Some(home) = dirs::home_dir() {
         let cc_db = home.join(".cc-switch").join("cc-switch.db");
         if cc_db.exists() {
-            let uri = format!("file:{}?mode=ro", cc_db.to_string_lossy());
-            if let Ok(conn) = Connection::open_with_flags(
-                &uri,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-            ) {
+            if let Ok(conn) = crate::modules::sqlite_uri::open_sqlite_ro(&cc_db) {
                 let mut stmt = conn
                     .prepare(
                         "SELECT model_id, display_name, input_cost_per_million, output_cost_per_million, cache_read_cost_per_million FROM model_pricing",

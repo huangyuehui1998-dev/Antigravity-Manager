@@ -6,11 +6,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DegradationStatus {
-    Nominal,          // 🟢 满血正常
-    Throttled,        // 🟡 队列排队 / 降频
-    ThinkingPruned,   // 🟠 思维链被阉割
-    ModelSubstituted, // 🔴 致命欺诈：模型被偷换
-    Jailed,           // 🔴 严重风控黑屋
+    Nominal,              // 🟢 满血正常
+    Throttled,            // 🟡 队列排队 / 降频
+    ThinkingPruned,       // 🟠 思维链被阉割
+    ModelSubstituted,     // 🔴 致命欺诈：模型被偷换
+    Jailed,               // 🔴 严重风控黑屋
+    InsufficientSamples,  // ⚪ 样本不足 (N=0)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

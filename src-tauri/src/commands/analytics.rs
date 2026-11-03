@@ -72,7 +72,7 @@ pub async fn get_model_health_diagnostics(
         model_name: spec.display_name,
         exact_model_id: model,
         health_score: 0,
-        status: crate::modules::degradation_diagnostics::DegradationStatus::Nominal,
+        status: crate::modules::degradation_diagnostics::DegradationStatus::InsufficientSamples,
         speed_score: 0.0,
         intel_score: 0.0,
         stability_score: 0.0,
@@ -109,25 +109,27 @@ pub async fn export_forensic_dossier(account_id: String) -> Result<serde_json::V
         "report_id": report_id,
         "account_id": account_id,
         "timestamp": now,
-        "audit_authority": "Antigravity Model Diagnostic Engine (V5.2.0)",
+        "audit_authority": "Antigravity Model Diagnostic Engine (V5.3.0)",
+        "sample_count": 0,
+        "conformance_status": "⚪ INSUFFICIENT_TELEMETRY_SAMPLES (N=0)",
         "exact_model_verification": {
-            "requested_model": "gemini-1.5-pro",
-            "physical_model_id": "gemini-1.5-pro-001",
+            "requested_model": "none",
+            "physical_model_id": "none",
             "is_substituted": false,
-            "signature": "PASS_AUTHENTIC"
+            "signature": "PENDING_TELEMETRY"
         },
         "latency_breakdown": {
-            "net_rtt_ms": 38,
-            "measured_ttft_ms": 780,
-            "expected_ttft_ms": 750,
-            "deviation_pct": "+4.0%"
+            "net_rtt_ms": 0,
+            "measured_ttft_ms": 0,
+            "expected_ttft_ms": 0,
+            "deviation_pct": "0.0%"
         },
         "throughput_telemetry": {
-            "effective_tps": 72.5,
-            "nominal_tps": 70.0,
+            "effective_tps": 0.0,
+            "nominal_tps": 0.0,
             "sampling_window": "500ms sliding EWMA"
         },
-        "conformance_status": "🟢 NOMINAL_FULL_COMPLIANT"
+        "note": "当前账号暂无真实流式遥测取证样本 (N=0)，证据包已完成防篡改存证"
     });
     Ok(payload)
 }

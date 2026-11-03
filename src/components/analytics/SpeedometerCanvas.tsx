@@ -130,7 +130,7 @@ export const SpeedometerCanvas: React.FC<SpeedometerProps> = ({
       const progress = Math.min(Math.max(val / maxRange, 0), 1.0);
       const currentAngle = startAngle + progress * sweep;
 
-      const statusColor = score >= 85 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+      const statusColor = status === 'InsufficientSamples' || score === 0 ? '#64748b' : score >= 85 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
       ctx.beginPath();
       ctx.arc(cx, cy, radius, startAngle, currentAngle);
       ctx.lineWidth = 8;

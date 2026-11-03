@@ -11,7 +11,7 @@
       <img src="https://img.shields.io/github/v/release/huangyuehui1998-dev/Antigravity-Manager?color=blue&style=flat-square" alt="GitHub release">
     </a>
     <a href="https://github.com/huangyuehui1998-dev/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-5.2.0-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-5.3.0-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">

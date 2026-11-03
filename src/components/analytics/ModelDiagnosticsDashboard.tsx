@@ -57,7 +57,9 @@ export const ModelDiagnosticsDashboard: React.FC<{ active?: boolean }> = ({ acti
 
       const diag = await invoke<HealthReport>('get_model_health_diagnostics', {
         modelName: selectedModel,
+        model_name: selectedModel,
         accountId: 'active_session',
+        account_id: 'active_session',
       });
       setReport(diag);
     } catch (e) {
