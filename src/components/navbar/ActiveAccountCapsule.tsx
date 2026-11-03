@@ -44,7 +44,7 @@ export const ActiveAccountCapsule: React.FC = () => {
       <span className="max-w-[100px] truncate">{emailPrefix}</span>
       <span className="flex items-center text-[10px] text-gray-400">
         <Zap size={10} className="text-[#6366F1] mr-0.5" />
-        {quota}%
+        {`${Math.round(quota)}%`}
       </span>
     </div>
   );

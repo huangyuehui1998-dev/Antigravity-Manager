@@ -91,7 +91,7 @@ export const CompactAccountMatrix: React.FC<CompactAccountMatrixProps> = ({
                     <Zap size={10} className="text-[#6366F1]" /> 5h 配额
                   </span>
                   <span className={`font-mono font-bold px-1 rounded text-[10px] border ${quotaColor}`}>
-                    {quota}%
+                    {`${Math.round(quota)}%`}
                   </span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-200/70 dark:bg-white/10 rounded-full overflow-hidden">

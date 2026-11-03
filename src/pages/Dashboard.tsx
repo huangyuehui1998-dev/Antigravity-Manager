@@ -505,7 +505,7 @@ function Dashboard() {
                                 <div className="h-6 w-px bg-gray-200 dark:bg-white/[0.08]" />
                                 <div>
                                     <div className="text-xl sm:text-2xl font-black font-mono tracking-tight text-blue-600 dark:text-blue-400 leading-none">
-                                        {Math.round((stats.available / (stats.total || 1)) * 100)}%
+                                        {`${Math.round((stats.available / (stats.total || 1)) * 100)}%`}
                                     </div>
                                     <div className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium mt-1">
                                         {t('dashboard.normal_rate', '健康正常率')}
@@ -566,7 +566,8 @@ function Dashboard() {
                                 {/* 底部操作栏胶囊 */}
                                 <div className="pt-3 mt-3 border-t border-gray-100 dark:border-white/[0.08] flex items-center justify-between text-xs">
                                     <span className="text-[11px] text-gray-400 dark:text-zinc-400 font-mono font-medium">
-                                        {Math.round((stats.available / (stats.total || 1)) * 100)}% {t('dashboard.asset_rate', '资产率')}
+                                        <span>{`${Math.round((stats.available / (stats.total || 1)) * 100)}%`}</span>{' '}
+                                        <span>{t('dashboard.asset_rate', '资产率')}</span>
                                     </span>
                                     <button
                                         type="button"
@@ -609,7 +610,7 @@ function Dashboard() {
                                     <div className="flex items-baseline justify-between">
                                         <div>
                                             <span className="text-3xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                                                {geminiQuotaValue}%
+                                                {`${Math.round(geminiQuotaValue)}%`}
                                             </span>
                                             <span className="text-[11px] text-gray-400 dark:text-zinc-400 block mt-0.5">
                                                 {geminiQuotaLabel}
@@ -635,7 +636,7 @@ function Dashboard() {
                                                         {t('dashboard.view_mode_5h', '5H 滚动')}
                                                     </span>
                                                     <span className={`font-mono text-xs font-bold ${quotaView === '5h' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-zinc-200'}`}>
-                                                        {stats.gemini.avg5h}%
+                                                        {`${Math.round(stats.gemini.avg5h)}%`}
                                                     </span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-gray-200/80 dark:bg-white/10 rounded-full overflow-hidden">
@@ -661,7 +662,7 @@ function Dashboard() {
                                                         {t('dashboard.view_mode_weekly', '7天周配额')}
                                                     </span>
                                                     <span className={`font-mono text-xs font-bold ${quotaView === 'weekly' ? 'text-teal-700 dark:text-teal-300' : 'text-gray-700 dark:text-zinc-200'}`}>
-                                                        {stats.gemini.avgWeekly}%
+                                                        {`${Math.round(stats.gemini.avgWeekly)}%`}
                                                     </span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-gray-200/80 dark:bg-white/10 rounded-full overflow-hidden">
@@ -714,7 +715,7 @@ function Dashboard() {
                                     <div className="flex items-baseline justify-between">
                                         <div>
                                             <span className="text-3xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                                                {claudeQuotaValue}%
+                                                {`${Math.round(claudeQuotaValue)}%`}
                                             </span>
                                             <span className="text-[11px] text-gray-400 dark:text-zinc-400 block mt-0.5">
                                                 {claudeQuotaLabel}
@@ -740,7 +741,7 @@ function Dashboard() {
                                                         {t('dashboard.view_mode_5h', '5H 滚动')}
                                                     </span>
                                                     <span className={`font-mono text-xs font-bold ${quotaView === '5h' ? 'text-cyan-700 dark:text-cyan-300' : 'text-gray-700 dark:text-zinc-200'}`}>
-                                                        {stats.claude.avg5h}%
+                                                        {`${Math.round(stats.claude.avg5h)}%`}
                                                     </span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-gray-200/80 dark:bg-white/10 rounded-full overflow-hidden">
@@ -766,7 +767,7 @@ function Dashboard() {
                                                         {t('dashboard.view_mode_weekly', '7天周配额')}
                                                     </span>
                                                     <span className={`font-mono text-xs font-bold ${quotaView === 'weekly' ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-zinc-200'}`}>
-                                                        {stats.claude.avgWeekly}%
+                                                        {`${Math.round(stats.claude.avgWeekly)}%`}
                                                     </span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-gray-200/80 dark:bg-white/10 rounded-full overflow-hidden">
@@ -822,7 +823,7 @@ function Dashboard() {
                                     <div className="flex items-baseline justify-between">
                                         <div>
                                             <span className="text-3xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                                                {Math.round((stats.available / (stats.total || 1)) * 100)}%
+                                                {`${Math.round((stats.available / (stats.total || 1)) * 100)}%`}
                                             </span>
                                             <span className="text-[11px] text-gray-400 dark:text-zinc-400 block mt-0.5">
                                                 {t('dashboard.health_available_rate', '健康可用率')}
