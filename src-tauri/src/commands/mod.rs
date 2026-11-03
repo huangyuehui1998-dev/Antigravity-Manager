@@ -5,8 +5,8 @@ use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
 // 导出 proxy 命令
-pub mod proxy;
 pub mod analytics;
+pub mod proxy;
 pub use analytics::*;
 // 导出 autostart 命令
 pub mod autostart;

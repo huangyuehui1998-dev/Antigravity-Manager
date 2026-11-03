@@ -1,9 +1,7 @@
 // src-tauri/src/commands/analytics.rs
 // 财务看板与数据湖 Tauri IPC 接口
 
-use crate::modules::analytics_hub::{
-    self, FinancialSummary, PeriodRollupItem, UnifiedUsageRecord,
-};
+use crate::modules::analytics_hub::{self, FinancialSummary, PeriodRollupItem, UnifiedUsageRecord};
 
 #[tauri::command]
 pub async fn get_financial_summary() -> Result<FinancialSummary, String> {
@@ -11,7 +9,9 @@ pub async fn get_financial_summary() -> Result<FinancialSummary, String> {
 }
 
 #[tauri::command]
-pub async fn get_financial_chart_data(limit_days: Option<u32>) -> Result<Vec<PeriodRollupItem>, String> {
+pub async fn get_financial_chart_data(
+    limit_days: Option<u32>,
+) -> Result<Vec<PeriodRollupItem>, String> {
     analytics_hub::query_daily_chart(limit_days.unwrap_or(30))
 }
 
@@ -31,8 +31,12 @@ pub async fn refresh_financial_analytics() -> Result<analytics_hub::RefreshRepor
 /// 获取全域五级探测发现的所有有效 Antigravity 数据源目录
 #[tauri::command]
 pub async fn get_discovered_antigravity_paths() -> Result<Vec<String>, String> {
-    let paths = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
-    Ok(paths.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
+    let paths =
+        crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
+    Ok(paths
+        .into_iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect())
 }
 
 /// 用户手动指定/添加自定义数据源目录
@@ -50,7 +54,8 @@ pub async fn add_custom_antigravity_path(path: String) -> Result<bool, String> {
 
 /// 获取官方基准技术手册技术规格库
 #[tauri::command]
-pub async fn get_official_benchmark_specs() -> Result<Vec<crate::modules::official_specs::OfficialModelSpec>, String> {
+pub async fn get_official_benchmark_specs(
+) -> Result<Vec<crate::modules::official_specs::OfficialModelSpec>, String> {
     Ok(crate::modules::official_specs::get_official_specs())
 }
 
@@ -91,7 +96,8 @@ pub async fn get_model_health_diagnostics(
 /// 生成工业级拟真金丝雀探针 Prompt
 #[tauri::command]
 pub async fn run_stealth_canary_probe() -> Result<serde_json::Value, String> {
-    let (prompt, trace_id) = crate::modules::degradation_diagnostics::CanaryProbe::generate_stealth_prompt();
+    let (prompt, trace_id) =
+        crate::modules::degradation_diagnostics::CanaryProbe::generate_stealth_prompt();
     Ok(serde_json::json!({
         "trace_id": trace_id,
         "prompt": prompt,

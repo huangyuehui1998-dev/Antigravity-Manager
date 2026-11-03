@@ -1,11 +1,11 @@
 // src-tauri/src/modules/antigravity_scanner.rs
 // Antigravity 工业级全电脑会话库极速流式增量扫描引擎 (V1.0)
 
+use crate::modules::analytics_hub::{normalize_model_name, PricingEntry};
 use rusqlite::{params, Connection, OpenFlags};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::modules::analytics_hub::{normalize_model_name, PricingEntry};
 
 const DEFAULT_USD_TO_CNY: f64 = 7.22;
 
@@ -36,9 +36,13 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
                 break;
             }
             shift += 7;
-            if shift >= 64 { break; }
+            if shift >= 64 {
+                break;
+            }
         }
-        if !tag_ok { break; }
+        if !tag_ok {
+            break;
+        }
 
         let field_num = (tag >> 3) as u32;
         let wire_type = (tag & 7) as u8;
@@ -57,7 +61,9 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
                         break;
                     }
                     s += 7;
-                    if s >= 64 { break; }
+                    if s >= 64 {
+                        break;
+                    }
                 }
                 if val_ok {
                     fields.insert(field_num, ProtoVal::Varint(val));
@@ -65,7 +71,7 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
             }
             1 => {
                 if pos + 8 <= len {
-                    fields.insert(field_num, ProtoVal::Fixed64(&data[pos..pos+8]));
+                    fields.insert(field_num, ProtoVal::Fixed64(&data[pos..pos + 8]));
                     pos += 8;
                 } else {
                     break;
@@ -84,12 +90,14 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
                         break;
                     }
                     s += 7;
-                    if s >= 64 { break; }
+                    if s >= 64 {
+                        break;
+                    }
                 }
                 if l_ok {
                     let l_usize = l as usize;
                     if pos + l_usize <= len {
-                        fields.insert(field_num, ProtoVal::Bytes(&data[pos..pos+l_usize]));
+                        fields.insert(field_num, ProtoVal::Bytes(&data[pos..pos + l_usize]));
                         pos += l_usize;
                     } else {
                         break;
@@ -98,7 +106,7 @@ fn parse_proto_fields<'a>(data: &'a [u8]) -> HashMap<u32, ProtoVal<'a>> {
             }
             5 => {
                 if pos + 4 <= len {
-                    fields.insert(field_num, ProtoVal::Fixed32(&data[pos..pos+4]));
+                    fields.insert(field_num, ProtoVal::Fixed32(&data[pos..pos + 4]));
                     pos += 4;
                 } else {
                     break;
@@ -115,7 +123,8 @@ pub use crate::modules::sqlite_uri::make_sqlite_ro_uri;
 
 /// 读取 Antigravity 会话标题索引映射 (全域五级自适应感知多路径)
 pub fn get_antigravity_titles() -> HashMap<String, String> {
-    let discovered_dirs = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
+    let discovered_dirs =
+        crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
     get_antigravity_titles_with_dirs(&discovered_dirs)
 }
 
@@ -125,15 +134,21 @@ pub fn get_antigravity_titles_with_dirs(discovered_dirs: &[PathBuf]) -> HashMap<
         let summary_db = base_dir.join("conversation_summaries.db");
         if summary_db.exists() {
             let uri = make_sqlite_ro_uri(&summary_db);
-            if let Ok(conn) = Connection::open_with_flags(&uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI) {
+            if let Ok(conn) = Connection::open_with_flags(
+                &uri,
+                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+            ) {
                 let _ = conn.pragma_update(None, "query_only", "ON");
                 let _ = conn.busy_timeout(std::time::Duration::from_millis(2000));
-                if let Ok(mut stmt) = conn.prepare("SELECT conversation_id, title, preview FROM conversation_summaries") {
+                if let Ok(mut stmt) = conn
+                    .prepare("SELECT conversation_id, title, preview FROM conversation_summaries")
+                {
                     if let Ok(rows) = stmt.query_map([], |row| {
                         let cid: String = row.get(0)?;
                         let title: Option<String> = row.get(1)?;
                         let preview: Option<String> = row.get(2)?;
-                        let name = title.filter(|t| !t.trim().is_empty())
+                        let name = title
+                            .filter(|t| !t.trim().is_empty())
                             .or_else(|| preview.filter(|p| !p.trim().is_empty()))
                             .unwrap_or_else(|| "未命名会话".to_string());
                         Ok((cid, name))
@@ -208,7 +223,9 @@ impl QfaeAttributor {
             let warmup_path = data_dir.join("warmup_history.json");
             if warmup_path.exists() {
                 if let Ok(content) = fs::read_to_string(&warmup_path) {
-                    if let Ok(map) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&content) {
+                    if let Ok(map) =
+                        serde_json::from_str::<HashMap<String, serde_json::Value>>(&content)
+                    {
                         for (k, v) in map {
                             let email = k.split(':').next().unwrap_or("").to_string();
                             let ts_sec = v.as_i64().unwrap_or(0);
@@ -251,7 +268,10 @@ impl QfaeAttributor {
         if timestamp_ms < self.transitions[0].0 {
             return &self.default_email;
         }
-        let idx = match self.transitions.binary_search_by_key(&timestamp_ms, |t| t.0) {
+        let idx = match self
+            .transitions
+            .binary_search_by_key(&timestamp_ms, |t| t.0)
+        {
             Ok(i) => i,
             Err(i) => {
                 if i > 0 {
@@ -270,17 +290,15 @@ pub fn sync_antigravity_data(
     dest_conn: &mut Connection,
     pricing_map: &HashMap<String, PricingEntry>,
 ) -> Result<usize, String> {
-    let discovered_dirs = crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
+    let discovered_dirs =
+        crate::modules::universal_discovery::DiscoveryEngine::resolve_all_antigravity_paths();
     let titles = get_antigravity_titles_with_dirs(&discovered_dirs);
 
     let mut db_paths: Vec<PathBuf> = Vec::new();
     let mut seen_paths = std::collections::HashSet::new();
 
     for base_dir in &discovered_dirs {
-        let candidates = [
-            base_dir.join("conversations"),
-            base_dir.clone(),
-        ];
+        let candidates = [base_dir.join("conversations"), base_dir.clone()];
         for d in &candidates {
             if d.exists() && d.is_dir() {
                 if let Ok(entries) = fs::read_dir(d) {
@@ -288,7 +306,8 @@ pub fn sync_antigravity_data(
                         let p = entry.path();
                         if p.extension().map_or(false, |ext| ext == "db") {
                             let fname = p.file_name().and_then(|f| f.to_str()).unwrap_or("");
-                            if fname != "conversation_summaries.db" && seen_paths.insert(p.clone()) {
+                            if fname != "conversation_summaries.db" && seen_paths.insert(p.clone())
+                            {
                                 db_paths.push(p);
                             }
                         }
@@ -303,8 +322,16 @@ pub fn sync_antigravity_data(
 
     // 湖仓双库一致性自愈探测：若 token_stats.db 明显滞后于 unified_token_usage，触发全量回填
     let needs_resync = if let Ok(ts_conn) = crate::modules::token_stats::connect_db() {
-        let ts_count: i64 = ts_conn.query_row("SELECT COUNT(*) FROM token_usage", [], |r| r.get(0)).unwrap_or(0);
-        let u_count: i64 = dest_conn.query_row("SELECT COUNT(*) FROM unified_token_usage WHERE source = 'Antigravity'", [], |r| r.get(0)).unwrap_or(0);
+        let ts_count: i64 = ts_conn
+            .query_row("SELECT COUNT(*) FROM token_usage", [], |r| r.get(0))
+            .unwrap_or(0);
+        let u_count: i64 = dest_conn
+            .query_row(
+                "SELECT COUNT(*) FROM unified_token_usage WHERE source = 'Antigravity'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         u_count > 100 && ts_count < u_count / 2
     } else {
         false
@@ -315,7 +342,11 @@ pub fn sync_antigravity_data(
     for db_path in db_paths {
         let mtime = fs::metadata(&db_path)
             .and_then(|m| m.modified())
-            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64)
+            .map(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64
+            })
             .unwrap_or(0);
 
         let source_key = format!("antigravity:{}", db_path.to_string_lossy());
@@ -333,8 +364,15 @@ pub fn sync_antigravity_data(
             continue;
         }
 
-        let cid = db_path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
-        let conv_title = titles.get(&cid).cloned().unwrap_or_else(|| "未命名会话".to_string());
+        let cid = db_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        let conv_title = titles
+            .get(&cid)
+            .cloned()
+            .unwrap_or_else(|| "未命名会话".to_string());
 
         let uri = make_sqlite_ro_uri(&db_path);
         let src_conn = match Connection::open_with_flags(
@@ -361,8 +399,12 @@ pub fn sync_antigravity_data(
         }
 
         let mut step_timestamps: HashMap<i64, i64> = HashMap::new();
-        if let Ok(mut step_stmt) = src_conn.prepare("SELECT idx, metadata FROM steps WHERE metadata IS NOT NULL") {
-            if let Ok(s_rows) = step_stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))) {
+        if let Ok(mut step_stmt) =
+            src_conn.prepare("SELECT idx, metadata FROM steps WHERE metadata IS NOT NULL")
+        {
+            if let Ok(s_rows) = step_stmt.query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+            }) {
                 for (s_idx, s_meta) in s_rows.flatten() {
                     let top = parse_proto_fields(&s_meta);
                     if let Some(ProtoVal::Bytes(ts_bytes)) = top.get(&1) {
@@ -375,12 +417,15 @@ pub fn sync_antigravity_data(
             }
         }
 
-        let mut meta_stmt = match src_conn.prepare("SELECT idx, data FROM gen_metadata ORDER BY idx") {
-            Ok(s) => s,
-            Err(_) => continue,
-        };
+        let mut meta_stmt =
+            match src_conn.prepare("SELECT idx, data FROM gen_metadata ORDER BY idx") {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
 
-        let rows = meta_stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?)));
+        let rows = meta_stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+        });
         if let Ok(r_iter) = rows {
             let tx = match dest_conn.transaction() {
                 Ok(t) => t,
@@ -395,7 +440,9 @@ pub fn sync_antigravity_data(
             let mut batch_count = 0;
             let mut ts_conn_opt = crate::modules::token_stats::connect_db().ok();
             for (idx, data) in r_iter.flatten() {
-                if data.is_empty() { continue; }
+                if data.is_empty() {
+                    continue;
+                }
                 let top = parse_proto_fields(&data);
                 let cm_bytes = match top.get(&1) {
                     Some(ProtoVal::Bytes(b)) => *b,
@@ -417,10 +464,22 @@ pub fn sync_antigravity_data(
                 };
                 let usage = parse_proto_fields(usage_bytes);
 
-                let inp = match usage.get(&2) { Some(ProtoVal::Varint(v)) => *v as i64, _ => 0 };
-                let out = match usage.get(&3) { Some(ProtoVal::Varint(v)) => *v as i64, _ => 0 };
-                let cr  = match usage.get(&5) { Some(ProtoVal::Varint(v)) => *v as i64, _ => 0 };
-                let rz  = match usage.get(&9) { Some(ProtoVal::Varint(v)) => *v as i64, _ => 0 };
+                let inp = match usage.get(&2) {
+                    Some(ProtoVal::Varint(v)) => *v as i64,
+                    _ => 0,
+                };
+                let out = match usage.get(&3) {
+                    Some(ProtoVal::Varint(v)) => *v as i64,
+                    _ => 0,
+                };
+                let cr = match usage.get(&5) {
+                    Some(ProtoVal::Varint(v)) => *v as i64,
+                    _ => 0,
+                };
+                let rz = match usage.get(&9) {
+                    Some(ProtoVal::Varint(v)) => *v as i64,
+                    _ => 0,
+                };
 
                 if inp > 0 || cr > 0 || out > 0 {
                     let total_tokens = inp + cr + out;
@@ -433,9 +492,17 @@ pub fn sync_antigravity_data(
                     let in_nano = (in_rate * 1_000_000_000.0).round() as u64;
                     let out_nano = (out_rate * 1_000_000_000.0).round() as u64;
                     let cr_nano = (cache_rate * 1_000_000_000.0).round() as u64;
-                    let cost_nano = crate::modules::nano_currency::NanoUsd::from_tokens_checked(inp as u64, in_nano)
-                        .saturating_add(crate::modules::nano_currency::NanoUsd::from_tokens_checked(cr as u64, cr_nano))
-                        .saturating_add(crate::modules::nano_currency::NanoUsd::from_tokens_checked(out as u64, out_nano));
+                    let cost_nano = crate::modules::nano_currency::NanoUsd::from_tokens_checked(
+                        inp as u64, in_nano,
+                    )
+                    .saturating_add(crate::modules::nano_currency::NanoUsd::from_tokens_checked(
+                        cr as u64, cr_nano,
+                    ))
+                    .saturating_add(
+                        crate::modules::nano_currency::NanoUsd::from_tokens_checked(
+                            out as u64, out_nano,
+                        ),
+                    );
                     let cost_usd = cost_nano.to_usd_f64();
                     let cost_cny = cost_nano.to_cny_f64(DEFAULT_USD_TO_CNY);
 
@@ -469,7 +536,9 @@ pub fn sync_antigravity_data(
                     if let Some(ref mut ts_conn) = ts_conn_opt {
                         let hour_bucket = chrono::DateTime::from_timestamp_millis(timestamp)
                             .map(|dt| dt.format("%Y-%m-%d %H:00").to_string())
-                            .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d %H:00").to_string());
+                            .unwrap_or_else(|| {
+                                chrono::Local::now().format("%Y-%m-%d %H:00").to_string()
+                            });
                         let ts_sec = timestamp / 1000;
                         let _ = ts_conn.execute(
                             "INSERT INTO token_usage (timestamp, account_email, model, input_tokens, output_tokens, cached_tokens, total_tokens, reasoning_tokens)
@@ -515,7 +584,9 @@ pub fn sync_antigravity_data(
             .unwrap_or(0);
         if unhealed_count > 0 {
             let to_heal: Vec<(i64, i64)> = {
-                if let Ok(mut stmt) = ts_conn.prepare("SELECT id, timestamp FROM token_usage WHERE account_email NOT LIKE '%@%'") {
+                if let Ok(mut stmt) = ts_conn.prepare(
+                    "SELECT id, timestamp FROM token_usage WHERE account_email NOT LIKE '%@%'",
+                ) {
                     stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
                         .map(|rows| rows.flatten().collect())
                         .unwrap_or_default()
@@ -527,7 +598,10 @@ pub fn sync_antigravity_data(
                 if let Ok(tx) = ts_conn.transaction() {
                     for (row_id, ts_sec) in to_heal {
                         let email = attributor.resolve(ts_sec * 1000);
-                        let _ = tx.execute("UPDATE token_usage SET account_email = ?1 WHERE id = ?2", params![email, row_id]);
+                        let _ = tx.execute(
+                            "UPDATE token_usage SET account_email = ?1 WHERE id = ?2",
+                            params![email, row_id],
+                        );
                     }
                     let _ = tx.execute("DELETE FROM token_stats_hourly", []);
                     let _ = tx.execute(
@@ -575,7 +649,10 @@ pub fn sync_antigravity_data(
             if let Ok(tx) = dest_conn.transaction() {
                 for (row_id, ts_ms) in to_heal {
                     let email = attributor.resolve(ts_ms);
-                    let _ = tx.execute("UPDATE unified_token_usage SET account_id = ?1 WHERE id = ?2", params![email, row_id]);
+                    let _ = tx.execute(
+                        "UPDATE unified_token_usage SET account_id = ?1 WHERE id = ?2",
+                        params![email, row_id],
+                    );
                 }
                 let _ = tx.commit();
             }

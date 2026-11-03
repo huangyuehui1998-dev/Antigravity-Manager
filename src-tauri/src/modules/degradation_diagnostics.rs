@@ -6,12 +6,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DegradationStatus {
-    Nominal,              // 🟢 满血正常
-    Throttled,            // 🟡 队列排队 / 降频
-    ThinkingPruned,       // 🟠 思维链被阉割
-    ModelSubstituted,     // 🔴 致命欺诈：模型被偷换
-    Jailed,               // 🔴 严重风控黑屋
-    InsufficientSamples,  // ⚪ 样本不足 (N=0)
+    Nominal,             // 🟢 满血正常
+    Throttled,           // 🟡 队列排队 / 降频
+    ThinkingPruned,      // 🟠 思维链被阉割
+    ModelSubstituted,    // 🔴 致命欺诈：模型被偷换
+    Jailed,              // 🔴 严重风控黑屋
+    InsufficientSamples, // ⚪ 样本不足 (N=0)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,9 +70,16 @@ function transition(state: State, action: Action): State {{
     }
 
     /// 校验模型回答的逻辑准确性与思维深度
-    pub fn verify_response(response_text: &str, thinking_tokens: u32, is_thinking_model: bool) -> (bool, bool) {
+    pub fn verify_response(
+        response_text: &str,
+        thinking_tokens: u32,
+        is_thinking_model: bool,
+    ) -> (bool, bool) {
         // 过滤全部空白字符以容错多格式 JSON（空格、换行、缩进等）
-        let compact_text: String = response_text.chars().filter(|c| !c.is_whitespace()).collect();
+        let compact_text: String = response_text
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
         let is_logic_correct = compact_text.contains(r#""status":"resolved""#)
             && compact_text.contains(r#""retryCount":3"#)
             && compact_text.contains(r#""flag":true"#);
@@ -88,7 +95,12 @@ function transition(state: State, action: Action): State {{
 }
 
 /// 长上下文物理参数化延迟模型 TTFT_expected(L, C)
-pub fn calculate_expected_ttft(prompt_tokens: u64, cached_tokens: u64, is_pro_model: bool, net_rtt_ms: u64) -> u64 {
+pub fn calculate_expected_ttft(
+    prompt_tokens: u64,
+    cached_tokens: u64,
+    is_pro_model: bool,
+    net_rtt_ms: u64,
+) -> u64 {
     let ttft_base = if is_pro_model { 350 } else { 200 };
     let k_uncached = if is_pro_model { 0.040 } else { 0.015 }; // ms per token
     let k_cached = 0.003; // ms per token

@@ -52,7 +52,10 @@ pub fn make_sqlite_ro_uri(path: &Path) -> String {
 /// 优先以只读 URI 打开数据库，失败时无缝降级为裸路径只读打开
 pub fn open_sqlite_ro(path: &Path) -> Result<Connection, String> {
     let uri = make_sqlite_ro_uri(path);
-    match Connection::open_with_flags(&uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI) {
+    match Connection::open_with_flags(
+        &uri,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+    ) {
         Ok(c) => Ok(c),
         Err(e1) => {
             tracing::warn!("sqlite URI open failed ({uri}): {e1}; fallback bare path");

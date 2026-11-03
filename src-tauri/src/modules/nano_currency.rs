@@ -56,12 +56,21 @@ pub struct TieredPricing {
 }
 
 impl TieredPricing {
-    pub fn calculate_cost(&self, prompt: u64, cached: u64, thinking: u64, completion: u64) -> NanoUsd {
+    pub fn calculate_cost(
+        &self,
+        prompt: u64,
+        cached: u64,
+        thinking: u64,
+        completion: u64,
+    ) -> NanoUsd {
         let p_cost = NanoUsd::from_tokens_checked(prompt, self.prompt_nano);
         let cp_cost = NanoUsd::from_tokens_checked(cached, self.cached_prompt_nano);
         let th_cost = NanoUsd::from_tokens_checked(thinking, self.thinking_nano);
         let c_cost = NanoUsd::from_tokens_checked(completion, self.completion_nano);
 
-        p_cost.saturating_add(cp_cost).saturating_add(th_cost).saturating_add(c_cost)
+        p_cost
+            .saturating_add(cp_cost)
+            .saturating_add(th_cost)
+            .saturating_add(c_cost)
     }
 }

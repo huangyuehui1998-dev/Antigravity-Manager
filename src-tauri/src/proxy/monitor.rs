@@ -465,7 +465,10 @@ impl ProxyMonitor {
             .clone()
             .or_else(|| log.username.clone())
             .unwrap_or_else(|| "default_proxy".to_string());
-        let model = log.model.clone().unwrap_or_else(|| "gemini-3.8-flash".to_string());
+        let model = log
+            .model
+            .clone()
+            .unwrap_or_else(|| "gemini-3.8-flash".to_string());
         let input = log.input_tokens.unwrap_or(1);
         let output = log.output_tokens.unwrap_or(1);
         let cached = log.cached_tokens.unwrap_or(0);

@@ -58,11 +58,11 @@ pub struct FinancialSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceStat {
-    pub source: String,          // "antigravity" | "cursor" | "codex" | "kiro"
-    pub scanned: usize,          // 读到的候选条数
-    pub inserted: usize,         // 写入 unified_token_usage 条数
-    pub skipped: usize,          // 本轮「读到但未写入」条数
-    pub error: Option<String>,   // 该源失败原因；成功为 None
+    pub source: String,        // "antigravity" | "cursor" | "codex" | "kiro"
+    pub scanned: usize,        // 读到的候选条数
+    pub inserted: usize,       // 写入 unified_token_usage 条数
+    pub skipped: usize,        // 本轮「读到但未写入」条数
+    pub error: Option<String>, // 该源失败原因；成功为 None
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,8 +70,8 @@ pub struct RefreshReport {
     pub sources: Vec<SourceStat>,
     pub total_inserted: usize,
     pub duration_ms: u64,
-    pub ok: bool,                // 全部源无 error 且 rollup 成功
-    pub message: String,         // 人类可读一行摘要
+    pub ok: bool,        // 全部源无 error 且 rollup 成功
+    pub message: String, // 人类可读一行摘要
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,8 +100,8 @@ pub fn get_analytics_db_path() -> Result<PathBuf, String> {
 /// 打开/初始化独立数据湖数据库
 pub fn open_analytics_db() -> Result<Connection, String> {
     let db_path = get_analytics_db_path()?;
-    let conn = Connection::open(&db_path)
-        .map_err(|e| format!("Failed to open analytics db: {}", e))?;
+    let conn =
+        Connection::open(&db_path).map_err(|e| format!("Failed to open analytics db: {}", e))?;
 
     conn.pragma_update(None, "journal_mode", "WAL")
         .map_err(|e| format!("Failed to set WAL mode: {}", e))?;
@@ -182,7 +182,6 @@ pub fn prune_expired_logs(conn: &Connection) -> Result<usize, String> {
     Ok(deleted)
 }
 
-
 /// 加载本地权威价格表 (~/.cc-switch/cc-switch.db 与 LiteLLM 保底字典)
 pub fn load_pricing_table() -> HashMap<String, PricingEntry> {
     let mut map = HashMap::new();
@@ -236,7 +235,13 @@ pub fn load_pricing_table() -> HashMap<String, PricingEntry> {
         ("gpt-5.6-sol", "GPT-5.6 Sol", 5.0, 30.0, 0.5),
         ("gpt-5.6-terra", "GPT-5.6 Terra", 2.5, 15.0, 0.25),
         ("gemini-3.8-flash", "Gemini 3.8 Flash", 0.75, 3.75, 0.075),
-        ("claude-opus-4-6-thinking", "Claude Opus 4.6 (Thinking)", 15.0, 75.0, 1.5),
+        (
+            "claude-opus-4-6-thinking",
+            "Claude Opus 4.6 (Thinking)",
+            15.0,
+            75.0,
+            1.5,
+        ),
         ("gemini-1.5-pro", "Gemini 1.5 Pro", 1.25, 5.0, 0.3125),
         ("gemini-1.5-flash", "Gemini 1.5 Flash", 0.075, 0.30, 0.01875),
         ("gemini-2.0-flash", "Gemini 2.0 Flash", 0.10, 0.40, 0.025),
@@ -269,10 +274,16 @@ pub fn normalize_model_name(raw: &str) -> (String, String) {
         return ("claude-fable-5".to_string(), "Claude Fable 5".to_string());
     }
     if raw_lower.contains("sonnet-3-7") || raw_lower.contains("3.7-sonnet") {
-        return ("claude-3-7-sonnet".to_string(), "Claude 3.7 Sonnet".to_string());
+        return (
+            "claude-3-7-sonnet".to_string(),
+            "Claude 3.7 Sonnet".to_string(),
+        );
     }
     if raw_lower.contains("sonnet") || raw_lower.contains("3-5-sonnet") {
-        return ("claude-3-5-sonnet".to_string(), "Claude 3.5 Sonnet".to_string());
+        return (
+            "claude-3-5-sonnet".to_string(),
+            "Claude 3.5 Sonnet".to_string(),
+        );
     }
     if raw_lower.contains("sol") || raw_lower.contains("gpt-5.6-sol") {
         return ("gpt-5.6-sol".to_string(), "GPT-5.6 Sol".to_string());
@@ -284,28 +295,43 @@ pub fn normalize_model_name(raw: &str) -> (String, String) {
         return ("grok-4.6".to_string(), "Grok 4.6".to_string());
     }
     if raw_lower.contains("cursor-small") || raw_lower.contains("cursor-fast") {
-        return ("gpt-4o-mini".to_string(), "Cursor Fast (GPT-4o Mini)".to_string());
+        return (
+            "gpt-4o-mini".to_string(),
+            "Cursor Fast (GPT-4o Mini)".to_string(),
+        );
     }
     if raw_lower.contains("gpt-4o-mini") {
         return ("gpt-4o-mini".to_string(), "GPT-4o Mini".to_string());
     }
     if raw_lower.contains("3.8") || raw_lower.contains("3-8") || raw_lower.contains("gemini-3.8") {
-        return ("gemini-3.8-flash".to_string(), "Gemini 3.8 Flash".to_string());
+        return (
+            "gemini-3.8-flash".to_string(),
+            "Gemini 3.8 Flash".to_string(),
+        );
     }
     if raw_lower.contains("opus-4-6") || raw_lower.contains("opus-4.6") {
-        return ("claude-opus-4-6-thinking".to_string(), "Claude Opus 4.6 (Thinking)".to_string());
+        return (
+            "claude-opus-4-6-thinking".to_string(),
+            "Claude Opus 4.6 (Thinking)".to_string(),
+        );
     }
     if raw_lower.contains("gpt-4o") {
         return ("gpt-4o".to_string(), "GPT-4o".to_string());
     }
     if raw_lower.contains("gemini-2.0") {
-        return ("gemini-2.0-flash".to_string(), "Gemini 2.0 Flash".to_string());
+        return (
+            "gemini-2.0-flash".to_string(),
+            "Gemini 2.0 Flash".to_string(),
+        );
     }
     if raw_lower.contains("gemini-1.5-pro") {
         return ("gemini-1.5-pro".to_string(), "Gemini 1.5 Pro".to_string());
     }
     if raw_lower.contains("gemini-1.5-flash") {
-        return ("gemini-1.5-flash".to_string(), "Gemini 1.5 Flash".to_string());
+        return (
+            "gemini-1.5-flash".to_string(),
+            "Gemini 1.5 Flash".to_string(),
+        );
     }
     if raw_lower.contains("deepseek-r1") || raw_lower.contains("reasoner") {
         return ("deepseek-reasoner".to_string(), "DeepSeek R1".to_string());
@@ -325,14 +351,15 @@ pub fn calculate_cost(
     cached_tokens: i64,
     pricing_map: &HashMap<String, PricingEntry>,
 ) -> (f64, f64, f64, f64) {
-    let entry = pricing_map.get(normalized_key).cloned().unwrap_or_else(|| {
-        PricingEntry {
+    let entry = pricing_map
+        .get(normalized_key)
+        .cloned()
+        .unwrap_or_else(|| PricingEntry {
             display_name: normalized_key.to_string(),
             input_per_m: 3.0,
             output_per_m: 15.0,
             cache_read_per_m: 0.3,
-        }
-    });
+        });
 
     let effective_input = (input_tokens - cached_tokens).max(0);
     let in_cost = (effective_input as f64 / 1_000_000.0) * entry.input_per_m;
@@ -344,7 +371,6 @@ pub fn calculate_cost(
 
     (entry.input_per_m, entry.output_per_m, total_usd, total_cny)
 }
-
 
 /// 同步 Cursor 全局与工作区数据库 (以 URI mode=ro 零锁直读)
 pub fn sync_cursor_data(
@@ -382,7 +408,11 @@ pub fn sync_cursor_data(
 
         let mtime = fs::metadata(&db_path)
             .and_then(|m| m.modified())
-            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64)
+            .map(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64
+            })
             .unwrap_or(0);
 
         let source_key = format!("cursor:{}", db_path.to_string_lossy());
@@ -410,7 +440,9 @@ pub fn sync_cursor_data(
         let _ = src_conn.pragma_update(None, "busy_timeout", 2000);
 
         // 查询每日统计记录
-        let mut stmt = match src_conn.prepare("SELECT [key], [value] FROM ItemTable WHERE [key] LIKE 'aiCodeTracking.dailyStats%'") {
+        let mut stmt = match src_conn.prepare(
+            "SELECT [key], [value] FROM ItemTable WHERE [key] LIKE 'aiCodeTracking.dailyStats%'",
+        ) {
             Ok(s) => s,
             Err(_) => continue,
         };
@@ -425,22 +457,39 @@ pub fn sync_cursor_data(
                 let (key, val) = item;
                 if let Ok(v) = serde_json::from_str::<serde_json::Value>(&val) {
                     let date_str = v.get("date").and_then(|d| d.as_str()).unwrap_or("");
-                    let composer_lines = v.get("composerSuggestedLines").and_then(|l| l.as_i64()).unwrap_or(0);
-                    let tab_lines = v.get("tabSuggestedLines").and_then(|l| l.as_i64()).unwrap_or(0);
+                    let composer_lines = v
+                        .get("composerSuggestedLines")
+                        .and_then(|l| l.as_i64())
+                        .unwrap_or(0);
+                    let tab_lines = v
+                        .get("tabSuggestedLines")
+                        .and_then(|l| l.as_i64())
+                        .unwrap_or(0);
                     let total_lines = composer_lines + tab_lines;
 
                     if total_lines > 0 {
                         let est_tokens = total_lines * 35; // 行业通用经验折算: 1 代码行 ≈ 35 tokens
                         let timestamp = if !date_str.is_empty() {
                             chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                                .map(|d| d.and_hms_opt(12, 0, 0).unwrap().and_utc().timestamp_millis())
+                                .map(|d| {
+                                    d.and_hms_opt(12, 0, 0)
+                                        .unwrap()
+                                        .and_utc()
+                                        .timestamp_millis()
+                                })
                                 .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis())
                         } else {
                             chrono::Utc::now().timestamp_millis()
                         };
 
                         let (model_key, dname) = normalize_model_name("claude-3-5-sonnet");
-                        let (in_p, out_p, usd, cny) = calculate_cost(&model_key, est_tokens / 2, est_tokens / 2, 0, pricing_map);
+                        let (in_p, out_p, usd, cny) = calculate_cost(
+                            &model_key,
+                            est_tokens / 2,
+                            est_tokens / 2,
+                            0,
+                            pricing_map,
+                        );
 
                         // 避免重复入库检查
                         let exists: i64 = tx
@@ -527,7 +576,11 @@ pub fn sync_codex_data(
         let source_key = format!("codex:{}", sf.to_string_lossy());
         let mtime = fs::metadata(&sf)
             .and_then(|m| m.modified())
-            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64)
+            .map(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64
+            })
             .unwrap_or(0);
 
         let last_mtime: i64 = dest_conn
@@ -566,27 +619,45 @@ pub fn sync_codex_data(
                 let payload = val.get("payload");
 
                 if msg_type == "session_start" || msg_type == "model_change" {
-                    if let Some(m) = payload.and_then(|p| p.get("model")).and_then(|m| m.as_str()) {
+                    if let Some(m) = payload
+                        .and_then(|p| p.get("model"))
+                        .and_then(|m| m.as_str())
+                    {
                         cur_model = m.to_string();
                     }
                 } else if msg_type == "event_msg" {
                     if let Some(p) = payload {
-                        if p.get("type").and_then(|t| t.as_str()) == Some("thread_settings_applied") {
-                            if let Some(m) = p.get("thread_settings").and_then(|ts| ts.get("model")).and_then(|m| m.as_str()) {
+                        if p.get("type").and_then(|t| t.as_str()) == Some("thread_settings_applied")
+                        {
+                            if let Some(m) = p
+                                .get("thread_settings")
+                                .and_then(|ts| ts.get("model"))
+                                .and_then(|m| m.as_str())
+                            {
                                 cur_model = m.to_string();
                             }
                         } else if p.get("type").and_then(|t| t.as_str()) == Some("token_count") {
                             let usage = p.get("info").and_then(|i| i.get("total_token_usage"));
                             if let Some(u) = usage {
-                                let in_tokens = u.get("input_tokens").and_then(|v| v.as_i64()).unwrap_or(0);
-                                let out_tokens = u.get("output_tokens").and_then(|v| v.as_i64()).unwrap_or(0);
-                                let cache_tokens = u.get("cached_input_tokens").or_else(|| u.get("cached_tokens")).and_then(|v| v.as_i64()).unwrap_or(0);
+                                let in_tokens =
+                                    u.get("input_tokens").and_then(|v| v.as_i64()).unwrap_or(0);
+                                let out_tokens =
+                                    u.get("output_tokens").and_then(|v| v.as_i64()).unwrap_or(0);
+                                let cache_tokens = u
+                                    .get("cached_input_tokens")
+                                    .or_else(|| u.get("cached_tokens"))
+                                    .and_then(|v| v.as_i64())
+                                    .unwrap_or(0);
                                 let total_tokens = in_tokens + out_tokens;
 
                                 if total_tokens > 0 {
-                                    final_usage = Some((in_tokens, out_tokens, cache_tokens, total_tokens));
-                                    if let Some(ts_str) = val.get("timestamp").and_then(|v| v.as_str()) {
-                                        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_str) {
+                                    final_usage =
+                                        Some((in_tokens, out_tokens, cache_tokens, total_tokens));
+                                    if let Some(ts_str) =
+                                        val.get("timestamp").and_then(|v| v.as_str())
+                                    {
+                                        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_str)
+                                        {
                                             final_ts = dt.timestamp_millis();
                                         }
                                     }
@@ -600,7 +671,8 @@ pub fn sync_codex_data(
 
         if let Some((in_tokens, out_tokens, cache_tokens, total_tokens)) = final_usage {
             let (norm_key, dname) = normalize_model_name(&cur_model);
-            let (in_p, out_p, usd, cny) = calculate_cost(&norm_key, in_tokens, out_tokens, cache_tokens, pricing_map);
+            let (in_p, out_p, usd, cny) =
+                calculate_cost(&norm_key, in_tokens, out_tokens, cache_tokens, pricing_map);
 
             let tx = dest_conn.transaction().map_err(|e| e.to_string())?;
             let _ = tx.execute(
@@ -610,9 +682,19 @@ pub fn sync_codex_data(
                  input_unit_price, output_unit_price, exchange_rate, cost_usd, cost_cny)
                 VALUES (?, 'codex', 'Codex CLI', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 params![
-                    final_ts, sf.file_stem().and_then(|s| s.to_str()).unwrap_or("session"),
-                    &cur_model, &dname, in_tokens, out_tokens, cache_tokens, total_tokens,
-                    in_p, out_p, DEFAULT_USD_TO_CNY, usd, cny
+                    final_ts,
+                    sf.file_stem().and_then(|s| s.to_str()).unwrap_or("session"),
+                    &cur_model,
+                    &dname,
+                    in_tokens,
+                    out_tokens,
+                    cache_tokens,
+                    total_tokens,
+                    in_p,
+                    out_p,
+                    DEFAULT_USD_TO_CNY,
+                    usd,
+                    cny
                 ],
             );
 
@@ -641,26 +723,74 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
 
     // 1. Antigravity
     match crate::modules::antigravity_scanner::sync_antigravity_data(&mut conn, &pricing) {
-        Ok(c) => sources.push(SourceStat { source: "antigravity".into(), scanned: c, inserted: c, skipped: 0, error: None }),
-        Err(e) => sources.push(SourceStat { source: "antigravity".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+        Ok(c) => sources.push(SourceStat {
+            source: "antigravity".into(),
+            scanned: c,
+            inserted: c,
+            skipped: 0,
+            error: None,
+        }),
+        Err(e) => sources.push(SourceStat {
+            source: "antigravity".into(),
+            scanned: 0,
+            inserted: 0,
+            skipped: 0,
+            error: Some(e),
+        }),
     }
 
     // 2. Cursor
     match sync_cursor_data(&mut conn, &pricing) {
-        Ok(c) => sources.push(SourceStat { source: "cursor".into(), scanned: c, inserted: c, skipped: 0, error: None }),
-        Err(e) => sources.push(SourceStat { source: "cursor".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+        Ok(c) => sources.push(SourceStat {
+            source: "cursor".into(),
+            scanned: c,
+            inserted: c,
+            skipped: 0,
+            error: None,
+        }),
+        Err(e) => sources.push(SourceStat {
+            source: "cursor".into(),
+            scanned: 0,
+            inserted: 0,
+            skipped: 0,
+            error: Some(e),
+        }),
     }
 
     // 3. Codex
     match sync_codex_data(&mut conn, &pricing) {
-        Ok(c) => sources.push(SourceStat { source: "codex".into(), scanned: c, inserted: c, skipped: 0, error: None }),
-        Err(e) => sources.push(SourceStat { source: "codex".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+        Ok(c) => sources.push(SourceStat {
+            source: "codex".into(),
+            scanned: c,
+            inserted: c,
+            skipped: 0,
+            error: None,
+        }),
+        Err(e) => sources.push(SourceStat {
+            source: "codex".into(),
+            scanned: 0,
+            inserted: 0,
+            skipped: 0,
+            error: Some(e),
+        }),
     }
 
     // 4. Kiro
     match crate::modules::kiro_scanner::sync_kiro_data(&mut conn, &pricing) {
-        Ok(c) => sources.push(SourceStat { source: "kiro".into(), scanned: c, inserted: c, skipped: 0, error: None }),
-        Err(e) => sources.push(SourceStat { source: "kiro".into(), scanned: 0, inserted: 0, skipped: 0, error: Some(e) }),
+        Ok(c) => sources.push(SourceStat {
+            source: "kiro".into(),
+            scanned: c,
+            inserted: c,
+            skipped: 0,
+            error: None,
+        }),
+        Err(e) => sources.push(SourceStat {
+            source: "kiro".into(),
+            scanned: 0,
+            inserted: 0,
+            skipped: 0,
+            error: Some(e),
+        }),
     }
 
     let total_inserted: usize = sources.iter().map(|s| s.inserted).sum();
@@ -705,7 +835,11 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
         })
         .collect();
 
-    let message = format!("同步完成：写入 {} 条（{}）", total_inserted, summary_parts.join(", "));
+    let message = format!(
+        "同步完成：写入 {} 条（{}）",
+        total_inserted,
+        summary_parts.join(", ")
+    );
 
     Ok(RefreshReport {
         sources,
@@ -720,8 +854,20 @@ pub fn refresh_all_analytics() -> Result<RefreshReport, String> {
 pub fn query_financial_summary() -> Result<FinancialSummary, String> {
     let conn = open_analytics_db()?;
     let now = chrono::Utc::now();
-    let today_start = now.date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp_millis();
-    let month_start = now.date_naive().with_day(1).unwrap_or(now.date_naive()).and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp_millis();
+    let today_start = now
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc()
+        .timestamp_millis();
+    let month_start = now
+        .date_naive()
+        .with_day(1)
+        .unwrap_or(now.date_naive())
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc()
+        .timestamp_millis();
 
     let (total_toks, total_usd, total_cny, total_reqs): (i64, f64, f64, i64) = conn
         .query_row(
@@ -806,7 +952,10 @@ pub fn query_daily_chart(limit_days: u32) -> Result<Vec<PeriodRollupItem>, Strin
 }
 
 /// 查询明细流水列表 (带分页)
-pub fn query_usage_details(limit: u32, offset: u32) -> Result<(Vec<UnifiedUsageRecord>, i64), String> {
+pub fn query_usage_details(
+    limit: u32,
+    offset: u32,
+) -> Result<(Vec<UnifiedUsageRecord>, i64), String> {
     let conn = open_analytics_db()?;
     let total: i64 = conn
         .query_row("SELECT COUNT(*) FROM unified_token_usage", [], |r| r.get(0))

@@ -134,9 +134,17 @@ impl UniversalSseDecoder {
 
         // 3. Gemini 2.0 / 2.5 官方协议 (thought: true 与 usageMetadata)
         if let Some(candidates) = v.get("candidates").and_then(|c| c.as_array()) {
-            if let Some(parts) = candidates.get(0).and_then(|c| c.get("content")).and_then(|c| c.get("parts")).and_then(|p| p.as_array()) {
+            if let Some(parts) = candidates
+                .get(0)
+                .and_then(|c| c.get("content"))
+                .and_then(|c| c.get("parts"))
+                .and_then(|p| p.as_array())
+            {
                 for part in parts {
-                    let is_thought = part.get("thought").and_then(|t| t.as_bool()).unwrap_or(false);
+                    let is_thought = part
+                        .get("thought")
+                        .and_then(|t| t.as_bool())
+                        .unwrap_or(false);
                     let part_text = part.get("text").and_then(|t| t.as_str()).unwrap_or("");
                     if is_thought {
                         meta.thinking = Some(ThinkingPayload::Text(part_text.to_string()));

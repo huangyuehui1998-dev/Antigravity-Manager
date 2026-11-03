@@ -34,7 +34,8 @@ pub fn get_official_specs() -> Vec<OfficialModelSpec> {
         },
         OfficialModelSpec {
             display_name: "Gemini 3.8 Flash".to_string(),
-            exact_id_pattern: "gemini-3.8-flash.*|gemini-2.0-flash(?!-thinking).*|gemini-1.5-flash.*".to_string(),
+            exact_id_pattern:
+                "gemini-3.8-flash.*|gemini-2.0-flash(?!-thinking).*|gemini-1.5-flash.*".to_string(),
             nominal_tps_min: 120.0,
             nominal_tps_max: 155.0,
             nominal_ttft_ms_p50: 450,

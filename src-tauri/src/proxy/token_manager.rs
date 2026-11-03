@@ -1930,7 +1930,10 @@ impl TokenManager {
             account_json["protected_models"] = serde_json::Value::Array(Vec::new());
         }
 
-        let protected_models = match account_json.get_mut("protected_models").and_then(|v| v.as_array_mut()) {
+        let protected_models = match account_json
+            .get_mut("protected_models")
+            .and_then(|v| v.as_array_mut())
+        {
             Some(arr) => arr,
             None => return Ok(false),
         };
@@ -1960,7 +1963,10 @@ impl TokenManager {
                 {
                     latest["protected_models"] = serde_json::Value::Array(Vec::new());
                 }
-                let protected_models = match latest.get_mut("protected_models").and_then(|v| v.as_array_mut()) {
+                let protected_models = match latest
+                    .get_mut("protected_models")
+                    .and_then(|v| v.as_array_mut())
+                {
                     Some(arr) => arr,
                     None => return,
                 };

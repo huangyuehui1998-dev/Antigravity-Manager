@@ -223,7 +223,9 @@ pub fn record_usage(
 
 /// Attach current weekly usage without loading raw history or persisting derived totals.
 /// Attach multi-period consumption metrics (5H rolling, 7D rolling, 30D rolling)
-pub(crate) fn populate_account_consumption(accounts: &mut [crate::models::Account]) -> Result<(), String> {
+pub(crate) fn populate_account_consumption(
+    accounts: &mut [crate::models::Account],
+) -> Result<(), String> {
     if accounts.is_empty() {
         return Ok(());
     }
@@ -246,7 +248,8 @@ pub(crate) fn populate_account_consumption(accounts: &mut [crate::models::Accoun
                  WHERE (account_email = ?1 OR account_email LIKE ?2) AND timestamp >= ?3",
                 params![&account.email, &prefix_pattern, ts],
                 |r| Ok((r.get(0)?, r.get(1)?)),
-            ).unwrap_or((0, 0.0))
+            )
+            .unwrap_or((0, 0.0))
         };
 
         let (mut tokens_5h, mut cost_usd_5h) = query_period(ts_5h);
@@ -263,7 +266,8 @@ pub(crate) fn populate_account_consumption(accounts: &mut [crate::models::Accoun
                      WHERE timestamp >= ?1",
                     params![ts],
                     |r| Ok((r.get(0)?, r.get(1)?)),
-                ).unwrap_or((0, 0.0))
+                )
+                .unwrap_or((0, 0.0))
             };
             let (t5, c5) = total_query(ts_5h);
             let (t7, c7) = total_query(ts_7d);

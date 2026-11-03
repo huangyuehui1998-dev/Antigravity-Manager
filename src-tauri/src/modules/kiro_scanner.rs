@@ -41,7 +41,11 @@ pub fn get_kiro_sso_files() -> Vec<PathBuf> {
 /// Detect Kiro state database
 pub fn get_kiro_vscdb_path() -> Option<PathBuf> {
     if let Ok(appdata) = std::env::var("APPDATA") {
-        let p = Path::new(&appdata).join("Kiro").join("User").join("globalStorage").join("state.vscdb");
+        let p = Path::new(&appdata)
+            .join("Kiro")
+            .join("User")
+            .join("globalStorage")
+            .join("state.vscdb");
         if p.exists() {
             return Some(p);
         }
@@ -61,7 +65,11 @@ pub fn sync_kiro_data(
     if let Some(vscdb_path) = get_kiro_vscdb_path() {
         let mtime = fs::metadata(&vscdb_path)
             .and_then(|m| m.modified())
-            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64)
+            .map(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64
+            })
             .unwrap_or(0);
 
         let source_key = format!("kiro:{}", vscdb_path.to_string_lossy());
