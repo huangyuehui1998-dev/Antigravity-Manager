@@ -400,12 +400,12 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                     <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 mt-1 flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
                                         <span>
                                             {t('token_stats.input_short', '入')}:{' '}
-                                            <strong className="text-gray-800 dark:text-white font-mono">{formatNumber(summary?.total_input_tokens || 0)}</strong> ({inOutRatio.inPct}%)
+                                            <strong className="text-gray-800 dark:text-white font-mono">{formatNumber(summary?.total_input_tokens || 0)}</strong> {`(${inOutRatio.inPct}%)`}
                                         </span>
                                         <span>/</span>
                                         <span>
                                             {t('token_stats.output_short', '出')}:{' '}
-                                            <strong className="text-purple-600 dark:text-purple-300 font-mono">{formatNumber(summary?.total_output_tokens || 0)}</strong> ({inOutRatio.outPct}%)
+                                            <strong className="text-purple-600 dark:text-purple-300 font-mono">{formatNumber(summary?.total_output_tokens || 0)}</strong> {`(${inOutRatio.outPct}%)`}
                                         </span>
                                         <span
                                             className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
@@ -415,7 +415,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                             }`}
                                             title={`${t('token_stats.cockpit_thinking_share', '思考占比')}: ${deepMetrics.reasoningPctOfOutput}% (${formatNumber(deepMetrics.totalReasoning)} Tokens)`}
                                         >
-                                            {t('token_stats.reasoning_short', '思')}: {formatNumber(deepMetrics.totalReasoning)} ({deepMetrics.reasoningPctOfOutput}%)
+                                            {t('token_stats.reasoning_short', '思')}: {formatNumber(deepMetrics.totalReasoning)} {`(${deepMetrics.reasoningPctOfOutput}%)`}
                                         </span>
                                     </div>
                                 </div>
@@ -445,7 +445,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
                                                     <span className="text-gray-500 dark:text-gray-400 text-[10px] font-mono">{formatNumber(m.tokens)}</span>
-                                                    <span className="text-gray-900 dark:text-white font-bold text-[11px] font-mono">{m.pct}%</span>
+                                                    <span className="text-gray-900 dark:text-white font-bold text-[11px] font-mono">{`${Math.round(m.pct)}%`}</span>
                                                 </div>
                                             </div>
                                         );
@@ -689,7 +689,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                 </svg>
                                 <div className="absolute bottom-1 flex flex-col items-center text-center">
                                     <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400">
-                                        {t('token_stats.cockpit_hit_rate', '命中率')}: <strong className="text-teal-600 dark:text-emerald-400 font-mono">{cacheMetrics.hitRate.toFixed(1)}%</strong>
+                                        {t('token_stats.cockpit_hit_rate', '命中率')}: <strong className="text-teal-600 dark:text-emerald-400 font-mono">{`${cacheMetrics.hitRate.toFixed(1)}%`}</strong>
                                     </span>
                                     <span className="text-xl font-black font-mono text-gray-900 dark:text-white leading-none mt-0.5">
                                         {formatNumber(summary?.total_cached_tokens || 0)}
@@ -809,7 +809,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                         </div>
 
                                         <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 dark:text-gray-400">
-                                            <span>{t('token_stats.percentage', '占比')}: {acc.sharePct}% ({acc.requests} {t('token_stats.times', '次')})</span>
+                                            <span>{t('token_stats.percentage', '占比')}: {`${acc.sharePct}%`} ({acc.requests} {t('token_stats.times', '次')})</span>
                                             {acc.isHighConcentration ? (
                                                 <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5">
                                                     <AlertTriangle className="w-3 h-3" /> {t('token_stats.cockpit_high_concentration', '流量高度集中')}
@@ -864,7 +864,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
                                         </div>
 
                                         <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 dark:text-gray-400">
-                                            <span>{t('token_stats.percentage', '占比')}: {m.sharePct}% ({m.requests} {t('token_stats.times', '次')})</span>
+                                            <span>{t('token_stats.percentage', '占比')}: {`${m.sharePct}%`} ({m.requests} {t('token_stats.times', '次')})</span>
                                             <span>~${m.approxCost.toFixed(2)}</span>
                                         </div>
                                     </div>
@@ -942,7 +942,7 @@ export const CyberCockpitView: React.FC<CyberCockpitViewProps> = ({
 
                                         <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 dark:text-gray-400">
                                             <span>
-                                                {t('token_stats.percentage', '占比')}: {u.sharePct}% ({u.requests} {t('token_stats.times', '次')})
+                                                {t('token_stats.percentage', '占比')}: {`${u.sharePct}%`} ({u.requests} {t('token_stats.times', '次')})
                                             </span>
                                             <span className="text-purple-600 dark:text-purple-400 group-hover:underline flex items-center gap-0.5">
                                                 {t('token_stats.cockpit_view_detail', '详情')} <ArrowUpRight className="w-3 h-3" />

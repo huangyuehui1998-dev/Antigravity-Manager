@@ -417,8 +417,8 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                                 />
                             </div>
                             <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 dark:text-gray-500">
-                                <span>{inOutRatio.inputPct}% 入</span>
-                                <span>{inOutRatio.outputPct}% 出</span>
+                                <span>{`${inOutRatio.inputPct}% 入`}</span>
+                                <span>{`${inOutRatio.outputPct}% 出`}</span>
                             </div>
                         </div>
                     </div>
@@ -551,7 +551,7 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                                     {formatNumber(summary.total_cached_tokens)}
                                 </span>
                                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[#30b0c7]/10 text-[#30b0c7] border border-[#30b0c7]/20 shrink-0">
-                                    {cacheMetrics.hitRate.toFixed(1)}% 命中
+                                    {`${cacheMetrics.hitRate.toFixed(1)}% 命中`}
                                 </span>
                             </div>
                             <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 font-mono truncate">
@@ -724,7 +724,7 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                                 <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
                                     <span>{t('token_stats.active_days', '活跃天数')}</span>
                                     <span className="font-mono font-medium text-gray-900 dark:text-white">
-                                        {activeDaysCount} <span className="text-[10px] text-gray-400">({Math.round((activeDaysCount / 91) * 100)}%)</span>
+                                        {activeDaysCount} <span className="text-[10px] text-gray-400">{`(${Math.round((activeDaysCount / 91) * 100)}%)`}</span>
                                     </span>
                                 </div>
                                 {hoveredDay ? (
@@ -891,7 +891,7 @@ export const AppleBentoView: React.FC<AppleBentoViewProps> = ({
                                                 {formatNumber(item.total_tokens)}
                                             </span>
                                             <span className="text-[10px] text-gray-400">
-                                                {pct.toFixed(0)}%
+                                                {`${pct.toFixed(0)}%`}
                                             </span>
                                         </div>
                                     </div>

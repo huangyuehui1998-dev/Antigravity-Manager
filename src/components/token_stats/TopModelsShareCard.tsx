@@ -112,7 +112,7 @@ export const TopModelsShareCard: React.FC<TopModelsShareCardProps> = ({
                                         </span>
                                     </div>
                                     <span className="text-[10px] text-gray-400 dark:text-white/40 min-w-[28px] text-right">
-                                        {percent.toFixed(0)}%
+                                        {`${percent.toFixed(0)}%`}
                                     </span>
                                 </div>
                             </div>
