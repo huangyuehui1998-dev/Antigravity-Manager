@@ -417,7 +417,7 @@ pub fn sync_kiro_data(dest_conn: &mut Connection) -> Result<KiroSyncOutcome, Str
             "DELETE FROM kiro_usage_snapshots WHERE source = 'kiro' AND (account_id LIKE 'kiro-cid:%' OR account_id LIKE 'kiro-local:%');",
             [],
         );
-        let _ = crate::modules::account::get_accounts().map(|accs| {
+        let _ = crate::modules::account::list_accounts().map(|accs| {
             for acc in accs {
                 if acc.provider.as_deref() == Some("kiro")
                     && (acc.id.starts_with("kiro-cid:") || acc.id.starts_with("kiro-local:"))
@@ -461,7 +461,6 @@ pub fn sync_kiro_data(dest_conn: &mut Connection) -> Result<KiroSyncOutcome, Str
         crate::models::account::Account::new(account_id.clone(), account_id.clone(), kiro_token);
     account.name = Some(display_name);
     account.provider = Some("kiro".to_string());
-    account.account_type = Some("kiro".to_string());
     let _ = crate::modules::account::save_account(&account);
 
     if is_changed {
