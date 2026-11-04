@@ -461,7 +461,9 @@ pub fn sync_kiro_data(dest_conn: &mut Connection) -> Result<KiroSyncOutcome, Str
         crate::models::account::Account::new(account_id.clone(), account_id.clone(), kiro_token);
     account.name = Some(display_name);
     account.provider = Some("kiro".to_string());
-    let _ = crate::modules::account::save_account(&account);
+    if let Err(e) = crate::modules::account::upsert_account_with_id(&account) {
+        crate::modules::logger::log_error(&format!("Failed to upsert Kiro account into index: {}", e));
+    }
 
     if is_changed {
         Ok(KiroSyncOutcome::Inserted(1))

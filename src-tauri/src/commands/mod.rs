@@ -1537,9 +1537,8 @@ pub async fn update_account_label(account_id: String, label: String) -> Result<(
 
     // 1. 读取账号文件
     let data_dir = modules::account::get_data_dir()?;
-    let account_path = data_dir
-        .join("accounts")
-        .join(format!("{}.json", account_id));
+    let account_path =
+        modules::account::account_json_path(&data_dir.join("accounts"), &account_id);
 
     if !account_path.exists() {
         return Err(format!("账号文件不存在: {}", account_id));

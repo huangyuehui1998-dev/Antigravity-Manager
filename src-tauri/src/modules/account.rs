@@ -96,7 +96,7 @@ mod tests {
         );
 
         let content = serde_json::to_string_pretty(&account).expect("Failed to serialize account");
-        let account_path = accounts_dir.join(format!("{}.json", account_id));
+        let account_path = account_json_path(&accounts_dir, account_id);
         fs::write(&account_path, content).expect("Failed to write account file");
     }
 
@@ -854,6 +854,153 @@ mod tests {
         assert!(!updated.live_limited_models.contains_key("gemini-2.5-pro"));
         std::env::remove_var("ABV_DATA_DIR");
     }
+
+    #[test]
+    fn test_g2_san_account_file_stem() {
+        // 1. kiro-cid: / kiro-local: / arn:aws:
+        let id_kiro_cid = "kiro-cid:deadbeef-1234";
+        let stem_cid = account_file_stem(id_kiro_cid);
+        assert!(!stem_cid.contains(':'), "Colon must be replaced: {}", stem_cid);
+        assert_eq!(stem_cid, "kiro-cid_deadbeef-1234");
+
+        let id_kiro_local = "kiro-local:abcdef0123456789";
+        let stem_local = account_file_stem(id_kiro_local);
+        assert!(!stem_local.contains(':'), "Colon must be replaced: {}", stem_local);
+        assert_eq!(stem_local, "kiro-local_abcdef0123456789");
+
+        let id_arn = "arn:aws:iam::123456789012:user/alice";
+        let stem_arn = account_file_stem(id_arn);
+        assert!(
+            !stem_arn
+                .chars()
+                .any(|c| matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')),
+            "No Win illegal chars: {}",
+            stem_arn
+        );
+
+        // 2. All illegal Windows chars in Appendix A: a<b>c:d|e?f*g"h
+        let id_illegal = r#"a<b>c:d|e?f*g"h"#;
+        let stem_illegal = account_file_stem(id_illegal);
+        assert!(
+            !stem_illegal
+                .chars()
+                .any(|c| matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')),
+            "Illegal chars replaced: {}",
+            stem_illegal
+        );
+
+        // 3. Windows reserved device names: CON, aux, nul.json
+        let stem_con = account_file_stem("CON");
+        assert!(
+            stem_con.starts_with('_'),
+            "Reserved name CON should be prefixed: {}",
+            stem_con
+        );
+        let stem_aux = account_file_stem("aux");
+        assert!(
+            stem_aux.starts_with('_'),
+            "Reserved name aux should be prefixed: {}",
+            stem_aux
+        );
+        let stem_nul = account_file_stem("nul.json");
+        assert!(
+            stem_nul.starts_with('_'),
+            "Reserved name nul should be prefixed: {}",
+            stem_nul
+        );
+
+        // 4. Trailing dots and spaces stripped
+        let stem_trailing = account_file_stem("my_account.  ");
+        assert_eq!(stem_trailing, "my_account");
+
+        // 5. Empty and dots-only fallback
+        let stem_empty = account_file_stem("");
+        assert!(stem_empty.starts_with("id_"), "Empty fallback: {}", stem_empty);
+        let stem_dots = account_file_stem("...");
+        assert!(stem_dots.starts_with("id_"), "Dots fallback: {}", stem_dots);
+
+        // 6. Long ID truncation (<= 120 chars)
+        let long_id = "a".repeat(150);
+        let stem_long = account_file_stem(&long_id);
+        assert!(
+            stem_long.len() <= 120,
+            "Long stem should not exceed 120 chars: len={}",
+            stem_long.len()
+        );
+
+        // 7. Logical ID assert unchanged (forward-only mapping, not mathematical bijection)
+        assert_eq!(id_kiro_cid, "kiro-cid:deadbeef-1234");
+        assert_eq!(id_arn, "arn:aws:iam::123456789012:user/alice");
+    }
+
+    #[test]
+    fn test_g2_idx_upsert_account_with_id() {
+        let _guard = SHARED_TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let dir = TestDataDir::new();
+        std::env::set_var("ABV_DATA_DIR", dir.path());
+
+        let logical_id = "kiro-cid:deadbeef12345678";
+        let mut account = Account::new(
+            logical_id.to_string(),
+            "kiro-test@example.com".to_string(),
+            TokenData::new(
+                "tok".to_string(),
+                "rt".to_string(),
+                3600,
+                Some("kiro-test@example.com".to_string()),
+                None,
+                None,
+                true,
+                None,
+            ),
+        );
+        account.name = Some("Kiro Account".to_string());
+        account.provider = Some("kiro".to_string());
+
+        // Upsert via upsert_account_with_id
+        let res = upsert_account_with_id(&account);
+        assert!(res.is_ok(), "upsert_account_with_id failed: {:?}", res);
+
+        // Verify index preserves exact logical ID with colon
+        let index = load_account_index().expect("load_account_index failed");
+        let item = index.accounts.iter().find(|s| s.id == logical_id);
+        assert!(item.is_some(), "Logical id with colon not found in index");
+        assert_eq!(
+            item.unwrap().id,
+            logical_id,
+            "Index id must match logical id exactly"
+        );
+        assert_ne!(
+            item.unwrap().id,
+            uuid::Uuid::nil().to_string(),
+            "Index id must not be UUID"
+        );
+
+        // Verify list_accounts loads the account and retains provider and logical id
+        let list = list_accounts().expect("list_accounts failed");
+        let loaded = list.iter().find(|a| a.id == logical_id);
+        assert!(
+            loaded.is_some(),
+            "Account with logical id not found in list_accounts"
+        );
+        let loaded_acc = loaded.unwrap();
+        assert_eq!(loaded_acc.id, logical_id);
+        assert_eq!(loaded_acc.provider.as_deref(), Some("kiro"));
+
+        // Verify physical file stem on disk is sanitized (no colon in filename)
+        let stem = account_file_stem(logical_id);
+        assert!(!stem.contains(':'), "Stem must not contain colon: {}", stem);
+        let expected_path = account_json_path(&dir.path().join("accounts"), logical_id);
+        assert!(
+            expected_path.exists(),
+            "Sanitized account file does not exist at {:?}",
+            expected_path
+        );
+
+        std::env::remove_var("ABV_DATA_DIR");
+    }
 }
 
 /// Global account write lock to prevent corruption during concurrent operations
@@ -1273,7 +1420,7 @@ fn try_migrate_legacy_single_file(data_dir: &PathBuf, raw_content: &str) -> Opti
 
     let mut summaries = Vec::new();
     for acc in &parsed_accounts {
-        let acc_path = accounts_dir.join(format!("{}.json", acc.id));
+        let acc_path = account_json_path(&accounts_dir, &acc.id);
         if let Ok(content) = serde_json::to_string_pretty(acc) {
             let _ = crate::utils::fs::write_atomic(&acc_path, content.as_bytes());
         }
@@ -1424,7 +1571,7 @@ fn rebuild_index_from_accounts_in_dir(data_dir: &PathBuf) -> Result<AccountIndex
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
                 if path.extension().map_or(false, |ext| ext == "json") {
-                    if let Some(account_id) = path.file_stem().and_then(|s| s.to_str()) {
+                    if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
                         match load_account_at_path(&path) {
                             Ok(account) => {
                                 summaries.push(AccountSummary {
@@ -1440,8 +1587,8 @@ fn rebuild_index_from_accounts_in_dir(data_dir: &PathBuf) -> Result<AccountIndex
                             }
                             Err(e) => {
                                 crate::modules::logger::log_warn(&format!(
-                                    "Failed to load account {} during recovery: {}",
-                                    account_id, e
+                                    "Failed to load account file stem {} during recovery: {}",
+                                    file_stem, e
                                 ));
                             }
                         }
@@ -1606,10 +1753,96 @@ pub fn save_account_index(index: &AccountIndex) -> Result<(), String> {
     save_account_index_in_dir(&data_dir, index)
 }
 
+/// Strategy B: 稳定前向路径映射（非单射可逆，逻辑 id 仅存在于解密 JSON 与 accounts.json 索引）
+pub fn account_file_stem(logical_id: &str) -> String {
+    let trimmed = logical_id.trim();
+    if trimmed.is_empty() {
+        return "id_empty".to_string();
+    }
+
+    // 1. 将 <>:"/\|?* 与 ASCII 控制符 (0..=31, 127) 替换为 '_'
+    let mut stem: String = trimmed
+        .chars()
+        .map(|c| {
+            if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control()
+            {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+
+    // 2. 去除 Windows 非法的尾部空格与 '.'
+    while stem.ends_with(' ') || stem.ends_with('.') {
+        stem.pop();
+    }
+
+    if stem.is_empty() {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(logical_id.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        return format!("id_{}", &hash[..16]);
+    }
+
+    // 3. 检查 Windows 保留设备名 (CON, PRN, AUX, NUL, COM1..9, LPT1..9)
+    let is_reserved = {
+        let upper = stem.to_ascii_uppercase();
+        let stem_root = upper.split('.').next().unwrap_or(&upper);
+        matches!(
+            stem_root,
+            "CON"
+                | "PRN"
+                | "AUX"
+                | "NUL"
+                | "COM1"
+                | "COM2"
+                | "COM3"
+                | "COM4"
+                | "COM5"
+                | "COM6"
+                | "COM7"
+                | "COM8"
+                | "COM9"
+                | "LPT1"
+                | "LPT2"
+                | "LPT3"
+                | "LPT4"
+                | "LPT5"
+                | "LPT6"
+                | "LPT7"
+                | "LPT8"
+                | "LPT9"
+        )
+    };
+
+    if is_reserved {
+        stem = format!("_{}", stem);
+    }
+
+    // 4. 长度上限控制 (120 字符)，超长使用 sha256 截断收尾
+    if stem.len() > 120 {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(logical_id.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        stem.truncate(100);
+        stem = format!("{}_{}", stem, &hash[..16]);
+    }
+
+    stem
+}
+
+/// 获取账号文件在磁盘上的标准物理路径
+pub fn account_json_path(accounts_dir: &Path, logical_id: &str) -> PathBuf {
+    accounts_dir.join(format!("{}.json", account_file_stem(logical_id)))
+}
+
 /// Load account data
 pub fn load_account(account_id: &str) -> Result<Account, String> {
     let accounts_dir = get_accounts_dir()?;
-    let account_path = accounts_dir.join(format!("{}.json", account_id));
+    let account_path = account_json_path(&accounts_dir, account_id);
     load_account_at_path(&account_path)
 }
 
@@ -1637,12 +1870,13 @@ fn clean_duplicate_account_files(accounts_dir: &Path, active_id: &str, email: &s
         return;
     }
 
+    let active_stem = account_file_stem(active_id);
     if let Ok(entries) = fs::read_dir(accounts_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             if path.extension().map_or(false, |ext| ext == "json") {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    if stem != active_id {
+                    if stem != active_stem {
                         if let Ok(content) = fs::read_to_string(&path) {
                             if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
                                 if let Some(e) = val.get("email").and_then(|v| v.as_str()) {
@@ -1663,10 +1897,39 @@ fn clean_duplicate_account_files(accounts_dir: &Path, active_id: &str, email: &s
     }
 }
 
+/// G2-MIG 幂等清理损坏的非 json 文件或 0-byte 残留文件 (如 Windows 冒号截断或 ADS 遗留文件)
+pub fn cleanup_corrupt_account_artifacts(accounts_dir: &Path) {
+    if !accounts_dir.exists() {
+        return;
+    }
+    if let Ok(entries) = fs::read_dir(accounts_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                let is_json = path.extension().map_or(false, |ext| ext == "json");
+                let file_len = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+                // 1. 无 .json 扩展名的遗留文件 (如 accounts\kiro-cid, accounts\kiro-local)
+                // 2. 0-byte 大小的损坏文件
+                if (!is_json && (file_name.starts_with("kiro-cid") || file_name.starts_with("kiro-local") || file_name.starts_with("arn")))
+                    || (is_json && file_len == 0)
+                {
+                    crate::modules::logger::log_info(&format!(
+                        "🧹 [G2-MIG] Cleaning up invalid account artifact: {:?}",
+                        path
+                    ));
+                    let _ = fs::remove_file(&path);
+                }
+            }
+        }
+    }
+}
+
 /// Save account data (thread-safe and atomic)
 pub fn save_account(account: &Account) -> Result<(), String> {
     let accounts_dir = get_accounts_dir()?;
-    let account_path = accounts_dir.join(format!("{}.json", account.id));
+    let account_path = account_json_path(&accounts_dir, &account.id);
     save_account_at_path(&account_path, account)?;
     clean_duplicate_account_files(&accounts_dir, &account.id, &account.email);
     Ok(())
@@ -1684,6 +1947,9 @@ pub fn update_account_priority(account_id: &str, priority: u8) -> Result<(), Str
 /// List all accounts
 pub fn list_accounts() -> Result<Vec<Account>, String> {
     crate::modules::logger::log_info("Listing accounts...");
+    if let Ok(accounts_dir) = get_accounts_dir() {
+        cleanup_corrupt_account_artifacts(&accounts_dir);
+    }
     let mut index = load_account_index()?;
     let mut accounts = Vec::new();
     let mut index_dirty = false;
@@ -1840,6 +2106,45 @@ pub fn upsert_account(
     Ok(account)
 }
 
+/// Upsert account with explicit logical ID into disk and index (禁止生成新 UUID，供 Kiro 等固定 logical ID 账号使用)
+pub fn upsert_account_with_id(account: &Account) -> Result<(), String> {
+    let _lock = ACCOUNT_INDEX_LOCK
+        .lock()
+        .map_err(|e| format!("failed_to_acquire_lock: {}", e))?;
+
+    // 1. 写盘（使用 account_file_stem / account_json_path）
+    save_account(account)?;
+
+    // 2. 更新或追加索引（保持 account.id 原始逻辑字符串，包含冒号）
+    let mut index = load_account_index()?;
+    if let Some(summary) = index.accounts.iter_mut().find(|s| s.id == account.id) {
+        summary.email = account.email.clone();
+        summary.name = account.name.clone();
+        summary.disabled = account.disabled;
+        summary.proxy_disabled = account.proxy_disabled;
+        summary.protected_models = account.protected_models.clone();
+        summary.last_used = account.last_used;
+    } else {
+        index.accounts.push(AccountSummary {
+            id: account.id.clone(),
+            email: account.email.clone(),
+            name: account.name.clone(),
+            disabled: account.disabled,
+            proxy_disabled: account.proxy_disabled,
+            protected_models: account.protected_models.clone(),
+            created_at: account.created_at,
+            last_used: account.last_used,
+        });
+    }
+
+    if index.current_account_id.is_none() {
+        index.current_account_id = Some(account.id.clone());
+    }
+
+    save_account_index(&index)?;
+    Ok(())
+}
+
 /// Delete account
 pub fn delete_account(account_id: &str) -> Result<(), String> {
     let _lock = ACCOUNT_INDEX_LOCK
@@ -1864,7 +2169,7 @@ pub fn delete_account(account_id: &str) -> Result<(), String> {
 
     // Delete account file
     let accounts_dir = get_accounts_dir()?;
-    let account_path = accounts_dir.join(format!("{}.json", account_id));
+    let account_path = account_json_path(&accounts_dir, account_id);
 
     if account_path.exists() {
         fs::remove_file(&account_path)
@@ -1896,7 +2201,7 @@ pub fn delete_accounts(account_ids: &[String]) -> Result<(), String> {
         }
 
         // Delete account file
-        let account_path = accounts_dir.join(format!("{}.json", account_id));
+        let account_path = account_json_path(&accounts_dir, account_id);
         if account_path.exists() {
             let _ = fs::remove_file(&account_path);
         }
