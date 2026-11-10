@@ -860,12 +860,20 @@ mod tests {
         // 1. kiro-cid: / kiro-local: / arn:aws:
         let id_kiro_cid = "kiro-cid:deadbeef-1234";
         let stem_cid = account_file_stem(id_kiro_cid);
-        assert!(!stem_cid.contains(':'), "Colon must be replaced: {}", stem_cid);
+        assert!(
+            !stem_cid.contains(':'),
+            "Colon must be replaced: {}",
+            stem_cid
+        );
         assert_eq!(stem_cid, "kiro-cid_deadbeef-1234");
 
         let id_kiro_local = "kiro-local:abcdef0123456789";
         let stem_local = account_file_stem(id_kiro_local);
-        assert!(!stem_local.contains(':'), "Colon must be replaced: {}", stem_local);
+        assert!(
+            !stem_local.contains(':'),
+            "Colon must be replaced: {}",
+            stem_local
+        );
         assert_eq!(stem_local, "kiro-local_abcdef0123456789");
 
         let id_arn = "arn:aws:iam::123456789012:user/alice";
@@ -915,7 +923,11 @@ mod tests {
 
         // 5. Empty and dots-only fallback
         let stem_empty = account_file_stem("");
-        assert!(stem_empty.starts_with("id_"), "Empty fallback: {}", stem_empty);
+        assert!(
+            stem_empty.starts_with("id_"),
+            "Empty fallback: {}",
+            stem_empty
+        );
         let stem_dots = account_file_stem("...");
         assert!(stem_dots.starts_with("id_"), "Dots fallback: {}", stem_dots);
 
@@ -1764,8 +1776,7 @@ pub fn account_file_stem(logical_id: &str) -> String {
     let mut stem: String = trimmed
         .chars()
         .map(|c| {
-            if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control()
-            {
+            if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control() {
                 '_'
             } else {
                 c
@@ -1912,7 +1923,10 @@ pub fn cleanup_corrupt_account_artifacts(accounts_dir: &Path) {
 
                 // 1. 无 .json 扩展名的遗留文件 (如 accounts\kiro-cid, accounts\kiro-local)
                 // 2. 0-byte 大小的损坏文件
-                if (!is_json && (file_name.starts_with("kiro-cid") || file_name.starts_with("kiro-local") || file_name.starts_with("arn")))
+                if (!is_json
+                    && (file_name.starts_with("kiro-cid")
+                        || file_name.starts_with("kiro-local")
+                        || file_name.starts_with("arn")))
                     || (is_json && file_len == 0)
                 {
                     crate::modules::logger::log_info(&format!(

@@ -541,6 +541,7 @@ pub fn get_minute_stats(
                 total_reasoning_tokens: row.get(4)?,
                 total_tokens: row.get(5)?,
                 request_count: row.get(6)?,
+                cost_usd: 0.0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -588,6 +589,7 @@ pub fn get_hourly_stats(hours: i64) -> Result<Vec<TokenStatsAggregated>, String>
                 total_reasoning_tokens: row.get(4)?,
                 total_tokens: row.get(5)?,
                 request_count: row.get(6)?,
+                cost_usd: 0.0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -635,6 +637,7 @@ pub fn get_daily_stats(days: i64) -> Result<Vec<TokenStatsAggregated>, String> {
                 total_reasoning_tokens: row.get(4)?,
                 total_tokens: row.get(5)?,
                 request_count: row.get(6)?,
+                cost_usd: 0.0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -682,6 +685,7 @@ pub fn get_weekly_stats(weeks: i64) -> Result<Vec<TokenStatsAggregated>, String>
                 total_reasoning_tokens: row.get(4)?,
                 total_tokens: row.get(5)?,
                 request_count: row.get(6)?,
+                cost_usd: 0.0,
             })
         })
         .map_err(|e| e.to_string())?;

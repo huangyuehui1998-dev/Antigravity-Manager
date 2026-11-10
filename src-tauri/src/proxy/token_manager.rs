@@ -870,10 +870,8 @@ impl TokenManager {
 
     /// 重新加载指定账号（用于配额更新后的实时同步）
     pub async fn reload_account(&self, account_id: &str) -> Result<(), String> {
-        let path = crate::modules::account::account_json_path(
-            &self.data_dir.join("accounts"),
-            account_id,
-        );
+        let path =
+            crate::modules::account::account_json_path(&self.data_dir.join("accounts"), account_id);
         if !path.exists() {
             self.remove_account(account_id);
             return Err(format!("账号文件不存在: {:?}", path));
@@ -3906,10 +3904,8 @@ impl TokenManager {
     }
 
     fn clear_all_persisted_live_limits(&self, account_id: &str) -> bool {
-        let path = crate::modules::account::account_json_path(
-            &self.data_dir.join("accounts"),
-            account_id,
-        );
+        let path =
+            crate::modules::account::account_json_path(&self.data_dir.join("accounts"), account_id);
         let Ok(_account_write) = crate::modules::account::lock_account_file_updates() else {
             return false;
         };
@@ -4133,10 +4129,8 @@ impl TokenManager {
     /// - `model`: 可选的目标模型名称，用于模型级别配额重置时间匹配
     pub fn get_quota_reset_time(&self, account_id: &str, model: Option<&str>) -> Option<String> {
         // 直接用 account_id 查找账号文件（使用 account_json_path 处理文件名转义）
-        let account_path = crate::modules::account::account_json_path(
-            &self.data_dir.join("accounts"),
-            account_id,
-        );
+        let account_path =
+            crate::modules::account::account_json_path(&self.data_dir.join("accounts"), account_id);
 
         let content = std::fs::read_to_string(&account_path).ok()?;
         let account: serde_json::Value = serde_json::from_str(&content).ok()?;
@@ -5710,10 +5704,8 @@ impl TokenManager {
         }
 
         // 2. Persist to disk
-        let path = crate::modules::account::account_json_path(
-            &self.data_dir.join("accounts"),
-            account_id,
-        );
+        let path =
+            crate::modules::account::account_json_path(&self.data_dir.join("accounts"), account_id);
         if !path.exists() {
             return Err(format!("Account file not found: {:?}", path));
         }
