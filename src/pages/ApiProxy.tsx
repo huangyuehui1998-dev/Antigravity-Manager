@@ -23,7 +23,6 @@ import {
     Save,
     Share2,
     Bot,
-    Timer,
     Zap,
     Square,
     ChevronDown
@@ -41,12 +40,10 @@ import { motion } from 'framer-motion';
 import CircuitBreaker from '../components/settings/CircuitBreaker';
 import GlobalSystemPrompt from '../components/settings/GlobalSystemPrompt';
 import ImageThinkingMode from '../components/settings/ImageThinkingMode';
-import ThinkingBudget from '../components/settings/ThinkingBudget';
-import MultimodalSettings from '../components/settings/MultimodalSettings';
-import StreamTimeoutSettings from '../components/settings/StreamTimeoutSettings';
-import AgentSettings from '../components/settings/AgentSettings';
 import { CircuitBreakerConfig } from '../types/config';
 import { RequestDetailModal, ProxyRequestLog } from '../components/proxy/RequestDetailModal';
+import { GatewayStatusBanner } from '../components/proxy/GatewayStatusBanner';
+import { GatewayAdvancedSettings } from '../components/proxy/GatewayAdvancedSettings';
 
 interface ProxyStatus {
     running: boolean;
@@ -1818,6 +1815,19 @@ print(response.choices[0].message.content)`;
                     </div>
                 )}
 
+                {/* 网关运行状态总览条 */}
+                {!configLoading && !configError && appConfig && (
+                    <GatewayStatusBanner
+                        status={status}
+                        appConfig={appConfig}
+                        loading={loading}
+                        onToggle={handleToggle}
+                        onSave={handleSaveProxySettings}
+                        onCopy={copyToClipboardHandler}
+                        copiedId={copied}
+                    />
+                )}
+
                 {/* 配置区 */}
                 {!configLoading && !configError && appConfig && (
                     <div className="bg-white dark:bg-base-100 rounded-xl shadow-xs border border-gray-200/80 dark:border-base-200">
@@ -2332,73 +2342,13 @@ print(response.choices[0].message.content)`;
                         {/* TAB: 模型配置 (models) */}
                         {activeMenuTab === 'models' && (
                             <div className="p-4 space-y-4">
-                                {/* 流式超时设置 (Stream Timeout Settings) - 默认收起 */}
-                                <CollapsibleCard
-                                    title={t('proxy.config.stream_timeout_settings.title', { defaultValue: '流式超时设置 (Stream Timeout Settings)' })}
-                                    icon={<Timer size={18} className="text-blue-500" />}
-                                    defaultExpanded={false}
-                                >
-                                    <StreamTimeoutSettings
-                                        config={appConfig.proxy.stream_timeouts}
-                                        onChange={(timeoutConfig) => updateProxyConfig({ stream_timeouts: timeoutConfig })}
-                                        onSave={handleSaveProxySettings}
-                                    />
-                                </CollapsibleCard>
-
-                                {/* 思考设置 (Thinking & Reasoning Settings) - 默认收起 */}
-                                <CollapsibleCard
-                                    title={t('proxy.config.thinking_settings.title', { defaultValue: '思考设置 (Thinking Settings)' })}
-                                    icon={<BrainCircuit size={18} className="text-purple-500" />}
-                                    defaultExpanded={false}
-                                >
-                                    <ThinkingBudget
-                                        config={appConfig.proxy.thinking_budget}
-                                        onChange={(tbConfig) => updateProxyConfig({ thinking_budget: tbConfig })}
-                                        onSave={handleSaveProxySettings}
-                                        thinkingStoreEnabled={appConfig.proxy.experimental?.thinking_store_enabled !== false}
-                                        onThinkingStoreChange={(enabled) =>
-                                            updateExperimentalConfig({ thinking_store_enabled: enabled })
-                                        }
-                                        thinkingMaxMemoryTurns={appConfig.proxy.experimental?.thinking_max_memory_turns ?? 600}
-                                        onThinkingMaxMemoryTurnsChange={(turns: number) =>
-                                            updateExperimentalConfig({ thinking_max_memory_turns: turns })
-                                        }
-                                        thinkingRetentionDays={appConfig.proxy.experimental?.thinking_retention_days ?? 15}
-                                        onThinkingRetentionDaysChange={(days: number) =>
-                                            updateExperimentalConfig({ thinking_retention_days: days })
-                                        }
-                                        globalCompactionStripEnabled={appConfig.proxy.experimental?.enable_global_compaction_strip === true}
-                                        onGlobalCompactionStripChange={(enabled) =>
-                                            updateExperimentalConfig({ enable_global_compaction_strip: enabled })
-                                        }
-                                    />
-                                </CollapsibleCard>
-
-                                {/* 多模态交互设置 (Multimodal Settings) - 默认收起 */}
-                                <CollapsibleCard
-                                    title={t('proxy.config.multimodal_settings.title', { defaultValue: '多模态交互设置 (Multimodal Settings)' })}
-                                    icon={<Sparkles size={18} className="text-pink-500" />}
-                                    defaultExpanded={false}
-                                >
-                                    <MultimodalSettings
-                                        config={appConfig.proxy.multimodal}
-                                        onChange={(mConfig) => updateProxyConfig({ multimodal: mConfig })}
-                                        onSave={handleSaveProxySettings}
-                                    />
-                                </CollapsibleCard>
-
-                                {/* 特定 Agent 特性配置 (Specific Agent Settings) - 默认收起 */}
-                                <CollapsibleCard
-                                    title={t('proxy.config.agent_settings.title', { defaultValue: '特定 Agent 配置 (Specific Agent Settings)' })}
-                                    icon={<Bot size={18} className="text-cyan-500" />}
-                                    defaultExpanded={false}
-                                >
-                                    <AgentSettings
-                                        experimentalConfig={appConfig.proxy.experimental}
-                                        onChange={updateExperimentalConfig}
-                                        onSave={handleSaveProxySettings}
-                                    />
-                                </CollapsibleCard>
+                                {/* 网关高级配置组件 (超时、思考、多模态、Agent) */}
+                                <GatewayAdvancedSettings
+                                    proxyConfig={appConfig.proxy}
+                                    onUpdateProxyConfig={updateProxyConfig}
+                                    onUpdateExperimentalConfig={updateExperimentalConfig}
+                                    onSave={handleSaveProxySettings}
+                                />
 
                                 {/* 模型路由中心 紧随其后 */}
                                 {renderModelRouterSection()}

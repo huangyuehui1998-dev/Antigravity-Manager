@@ -509,7 +509,7 @@ pub fn sync_antigravity_data(
                 };
 
                 if inp > 0 || cr > 0 || out > 0 {
-                    let total_tokens = inp + cr + out;
+                    let total_tokens = inp + out;
                     let (normalized, _) = normalize_model_name(&raw_model);
                     let (in_rate, out_rate, cache_rate) = pricing_map
                         .get(&normalized)
@@ -519,8 +519,10 @@ pub fn sync_antigravity_data(
                     let in_nano = (in_rate * 1_000_000_000.0).round() as u64;
                     let out_nano = (out_rate * 1_000_000_000.0).round() as u64;
                     let cr_nano = (cache_rate * 1_000_000_000.0).round() as u64;
+                    let uncached_inp = (inp as u64).saturating_sub(cr as u64);
                     let cost_nano = crate::modules::nano_currency::NanoUsd::from_tokens_checked(
-                        inp as u64, in_nano,
+                        uncached_inp,
+                        in_nano,
                     )
                     .saturating_add(crate::modules::nano_currency::NanoUsd::from_tokens_checked(
                         cr as u64, cr_nano,
@@ -567,10 +569,18 @@ pub fn sync_antigravity_data(
                                 chrono::Local::now().format("%Y-%m-%d %H:00").to_string()
                             });
                         let ts_sec = timestamp / 1000;
+                        let pricing = crate::modules::nano_currency::get_model_pricing(&normalized);
+                        let cost =
+                            pricing.calculate_cost(inp as u64, cr as u64, rz as u64, out as u64);
                         let _ = ts_conn.execute(
-                            "INSERT INTO token_usage (timestamp, account_email, model, input_tokens, output_tokens, cached_tokens, total_tokens, reasoning_tokens)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                            params![ts_sec, attributed_email, &normalized, inp, out, cr, total_tokens, rz],
+                            "INSERT INTO token_usage (timestamp, account_email, account_id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, total_tokens, cost_nanousd)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                            params![ts_sec, attributed_email, attributed_email, &normalized, inp, out, cr, rz, total_tokens, cost.0],
+                        );
+                        let _ = ts_conn.execute(
+                            "INSERT INTO request_usage_log (request_id, timestamp, account_id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, cost_nanousd)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                            params![format!("scan-{}", timestamp), ts_sec, attributed_email, &normalized, inp, out, cr, rz, cost.0],
                         );
                         let _ = ts_conn.execute(
                             "INSERT INTO token_stats_hourly (hour_bucket, account_email, total_input_tokens, total_output_tokens, total_cached_tokens, total_tokens, request_count, total_reasoning_tokens)

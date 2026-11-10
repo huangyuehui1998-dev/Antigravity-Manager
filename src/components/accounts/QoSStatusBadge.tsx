@@ -3,7 +3,7 @@ import { AlertTriangle, Hourglass, Activity, ShieldAlert, Unlock } from 'lucide-
 import { useTranslation } from 'react-i18next';
 
 interface QoSStatusBadgeProps {
-    status?: 'suspicious' | 'jailed' | 'probing' | 'half_open' | null;
+    status?: 'suspicious' | 'jailed' | 'probing' | 'half_open' | 'rate_limited' | null;
     resetSeconds?: number | null;
     size?: 'xs' | 'sm' | 'md';
     onRelease?: () => void;
@@ -56,6 +56,7 @@ export const QoSStatusBadge: React.FC<QoSStatusBadgeProps> = ({
                     <span>{t('accounts.qos.suspicious')}</span>
                 </span>
             );
+        case 'rate_limited':
         case 'jailed':
             return (
                 <span

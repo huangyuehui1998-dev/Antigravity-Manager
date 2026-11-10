@@ -4,6 +4,21 @@
             "subtitle": "五级路径自适应探测 · 官方标称手册比对 · 金丝雀抗作弊 · Fail-Open 开路"
         }
     },
+    "analytics_hub": {
+        "tabs": {
+            "financial": "商业财务价值看板",
+            "tokens": "模型用量画像统计",
+            "diagnostics": "模型真伪评判与实时流速遥测",
+            "logs": "全电脑调用流水日志"
+        }
+    },
+    "api_proxy_hub": {
+        "tabs": {
+            "gateway": "反向代理核心配置",
+            "tokens": "User Token 分发管理",
+            "security": "IP 防护与安全规则"
+        }
+    },
     "common": {
         "loading": "加载中...",
         "load_more": "加载更多",
@@ -292,10 +307,13 @@
         "forbidden_tooltip": "API 返回 403 Forbidden，账号无权使用 Gemini Code Assist",
         "forbidden_msg": "账号无权限，已跳过自动刷新",
         "status": {
-            "forbidden": "403 Forbidden",
-            "disabled": "账号已禁用",
+            "title": "健康状态与冷却",
+            "forbidden": "已封禁",
+            "disabled": "已禁用",
             "proxy_disabled": "反代已禁用",
-            "validation_required": "账号需验证",
+            "validation_required": "需验证",
+            "cooling": "冷却中",
+            "healthy": "正常",
             "risk_controlled": "风控/限流",
             "oauth_reauth_required": "授权异常",
             "violation_blocked": "由于违规被禁用"
@@ -390,11 +408,16 @@
         "remaining_quota": "剩余配额: {{percentage}}%",
         "reset_in": "重置: {{time}}",
         "supported_official_models": "支持官方模型 ({{count}}个):",
+        "unlock_account": "解锁账号",
+        "releasing": "正在解除...",
         "details": {
             "title": "配额详情",
             "model_quota": "具体模型配额",
             "protected_models": "受保护模型",
-            "thinking_budget": "思考预算"
+            "thinking_budget": "思考预算",
+            "metadata": "账号身份与指纹信息",
+            "last_used": "最后使用",
+            "created_at": "添加时间"
         },
         "toast": {
             "proxy_enabled": "成功启用 {{count}} 个账号的反代功能",
@@ -451,13 +474,31 @@
         },
         "table": {
             "email": "邮箱",
+            "status": "状态",
             "quota": "模型配额",
             "weekly_quota": "周配额",
+            "consumption": "消费与最后使用",
             "last_used": "最后使用",
             "actions": "操作",
             "sort_by_reset_time": "点击按配额重置时间排序",
             "sort_by_last_used": "点击按最后使用时间排序"
         },
+        "quota_capsule": {
+            "5h_and_weekly": "5H / 周配额",
+            "5h_quota": "5H 配额",
+            "weekly_quota": "周配额",
+            "reset_time": "重置时间"
+        },
+        "quota_groups": {
+            "title": "模型配额细分"
+        },
+        "consumption": {
+            "title": "4D 计量计费流水"
+        },
+        "current_active": "当前活跃",
+        "switch": "切换 IDE",
+        "unrefreshed_hint": "未刷新或暂无配额数据",
+        "click_to_view_error": "点击查看封禁详情",
         "drag_to_reorder": "拖拽排序",
         "drag_disabled_during_sort": "已激活列排序，拖拽排序已暂停",
         "empty": {

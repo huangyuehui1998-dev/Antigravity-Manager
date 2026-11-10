@@ -1585,6 +1585,39 @@ async fn admin_release_account_qos_jail(
     axum::extract::Path(account_id): axum::extract::Path<String>,
 ) -> impl IntoResponse {
     state.token_manager.release_account_qos_jail(&account_id);
+    if let Ok(mut account) = crate::modules::account::load_account(&account_id) {
+        account.qos_status = None;
+        account.qos_reset_seconds = None;
+        account.validation_blocked = false;
+        account.validation_blocked_until = None;
+        account.validation_blocked_reason = None;
+        account.validation_url = None;
+        if let Some(ref mut q) = account.quota {
+            q.is_forbidden = false;
+            q.forbidden_reason = None;
+        }
+        if account.proxy_disabled
+            && account.proxy_disabled_reason.as_ref().map_or(false, |r| {
+                r.starts_with("Forbidden (403)")
+                    || r.contains("403 Forbidden")
+                    || r.contains("VALIDATION_REQUIRED")
+                    || r == "quota_protection"
+            })
+        {
+            account.proxy_disabled = false;
+            account.proxy_disabled_reason = None;
+            account.proxy_disabled_at = None;
+        }
+        let _ = crate::modules::account::save_account(&account);
+        if let Ok(mut index) = crate::modules::account::load_account_index() {
+            if let Some(summary) = index.accounts.iter_mut().find(|a| a.id == account_id) {
+                summary.proxy_disabled = account.proxy_disabled;
+                summary.disabled = account.disabled;
+                let _ = crate::modules::account::save_account_index(&index);
+            }
+        }
+        crate::proxy::server::trigger_account_reload(&account_id);
+    }
     StatusCode::OK
 }
 

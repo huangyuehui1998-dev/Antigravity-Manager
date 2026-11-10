@@ -2288,7 +2288,11 @@ pub async fn switch_account(
     let fresh_token = match oauth::ensure_fresh_token(&account.token, Some(&account.id)).await {
         Ok(token) => token,
         Err(e) => {
-            if is_account_access_blocked_message(&e) {
+            if is_rate_limit_message(&e) {
+                account.qos_status = Some("rate_limited".to_string());
+                account.qos_reset_seconds = Some(60);
+                let _ = save_account(&account);
+            } else if is_account_access_blocked_message(&e) {
                 mark_validation_blocked(&mut account, &e);
             }
             return Err(format_switch_refresh_error(&e));
@@ -2384,37 +2388,36 @@ async fn ensure_enterprise_project_ready(account: &mut Account) -> Result<(), St
     }
 }
 
+pub fn extract_retry_after(err: &crate::error::AppError) -> u64 {
+    let s = err.to_string();
+    if let Some(pos) = s.find("retry_after: ") {
+        let rest = &s[pos + 13..];
+        if let Some(end) = rest.find('s') {
+            if let Ok(secs) = rest[..end].parse::<u64>() {
+                return secs.max(10).min(3600);
+            }
+        }
+    }
+    60
+}
+
+pub fn is_rate_limit_message(message: &str) -> bool {
+    let lower = message.to_lowercase();
+    lower.contains("429")
+        || lower.contains("too many requests")
+        || lower.contains("resource_exhausted")
+        || lower.contains("resource has been exhausted")
+}
+
 fn is_rate_limit_error(err: &crate::error::AppError) -> bool {
     match err {
         crate::error::AppError::Network(_, Some(status)) => *status == 429,
         crate::error::AppError::Unknown(msg)
         | crate::error::AppError::OAuth(msg)
         | crate::error::AppError::Account(msg)
-        | crate::error::AppError::Config(msg) => {
-            let lower = msg.to_lowercase();
-            lower.contains("429")
-                || lower.contains("too many requests")
-                || lower.contains("resource_exhausted")
-                || lower.contains("resource has been exhausted")
-        }
+        | crate::error::AppError::Config(msg) => is_rate_limit_message(msg),
         _ => false,
     }
-}
-
-fn recover_cached_quota_on_rate_limit(
-    account: &Account,
-    err: &crate::error::AppError,
-) -> Option<QuotaData> {
-    if !is_rate_limit_error(err) {
-        return None;
-    }
-
-    let cached = account.quota.clone()?;
-    if cached.models.is_empty() {
-        return None;
-    }
-
-    Some(cached)
 }
 
 fn is_validation_required_error(err: &crate::error::AppError) -> bool {
@@ -2476,8 +2479,6 @@ fn is_account_access_blocked_message(message: &str) -> bool {
         || text.contains("unauthorized_client")
         || text.contains("invalid_client")
         || text.contains("invalid_grant")
-        || text.contains("resource_exhausted")
-        || text.contains("resource has been exhausted")
 }
 
 fn format_switch_refresh_error(message: &str) -> String {
@@ -2554,12 +2555,14 @@ fn mark_validation_blocked(account: &mut Account, reason: &str) {
     }
 }
 
-fn clear_validation_blocked(account: &mut Account) {
+pub(crate) fn clear_validation_blocked(account: &mut Account) {
+    let has_quota_forbidden = account.quota.as_ref().map_or(false, |q| q.is_forbidden);
     if !account.validation_blocked
         && account.validation_blocked_until.is_none()
         && account.validation_blocked_reason.is_none()
         && account.validation_url.is_none()
         && !account.proxy_disabled
+        && !has_quota_forbidden
     {
         return;
     }
@@ -3181,9 +3184,11 @@ pub fn update_account_quota_internal(
     }
     // --- Quota protection logic end ---
 
-    // If quota retrieval succeeded and quota is not forbidden, auto-recover 403 / validation locks
+    // If quota retrieval succeeded and quota is not forbidden, auto-recover 403 / validation locks / QoS
     if let Some(ref q) = account.quota {
         if !q.is_forbidden {
+            account.qos_status = None;
+            account.qos_reset_seconds = None;
             clear_validation_blocked(&mut account);
             if account.proxy_disabled
                 && account.proxy_disabled_reason.as_ref().map_or(false, |r| {
@@ -3632,13 +3637,22 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> crate::error::AppR
                         if is_validation_required_error(&e) {
                             mark_validation_blocked(account, &e.to_string());
                         }
-                        if let Some(cached) = recover_cached_quota_on_rate_limit(account, &e) {
-                            mark_validation_blocked(account, &format_rate_limit_block_reason(&e));
-                            modules::logger::log_warn(&format!(
-                                "Quota API rate-limited for {}, using cached model list as fallback",
-                                account.email
+                        if is_rate_limit_error(&e) {
+                            let retry_secs = extract_retry_after(&e);
+                            crate::modules::logger::log_warn(&format!(
+                                "Quota API rate-limited (429) for {}, entering {}s cooldown (no account lock)",
+                                account.email, retry_secs
                             ));
-                            return Ok(cached);
+                            account.qos_status = Some("rate_limited".to_string());
+                            account.qos_reset_seconds = Some(retry_secs);
+                            let _ = save_account(account);
+                            return Err(crate::error::AppError::Network(
+                                format!(
+                                    "Quota API rate-limited (429) for {}: cooling down {}s",
+                                    account.email, retry_secs
+                                ),
+                                Some(429),
+                            ));
                         }
                         return Err(e);
                     }
@@ -3659,13 +3673,22 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> crate::error::AppR
             if is_validation_required_error(&e) {
                 mark_validation_blocked(account, &e.to_string());
             }
-            if let Some(cached) = recover_cached_quota_on_rate_limit(account, &e) {
-                mark_validation_blocked(account, &format_rate_limit_block_reason(&e));
-                modules::logger::log_warn(&format!(
-                    "Quota API rate-limited for {}, using cached model list as fallback",
-                    account.email
+            if is_rate_limit_error(&e) {
+                let retry_secs = extract_retry_after(&e);
+                crate::modules::logger::log_warn(&format!(
+                    "Quota API rate-limited (429) for {}, entering {}s cooldown (no account lock)",
+                    account.email, retry_secs
                 ));
-                return Ok(cached);
+                account.qos_status = Some("rate_limited".to_string());
+                account.qos_reset_seconds = Some(retry_secs);
+                let _ = save_account(account);
+                return Err(crate::error::AppError::Network(
+                    format!(
+                        "Quota API rate-limited (429) for {}: cooling down {}s",
+                        account.email, retry_secs
+                    ),
+                    Some(429),
+                ));
             }
             Err(e)
         }
@@ -3682,15 +3705,21 @@ pub struct RefreshStats {
 
 /// Core logic to batch refresh all account quotas (decoupled from Tauri status)
 pub async fn refresh_all_quotas_logic() -> Result<RefreshStats, String> {
+    refresh_all_quotas_logic_with_handle(None).await
+}
+
+pub async fn refresh_all_quotas_logic_with_handle(
+    app_handle: Option<tauri::AppHandle>,
+) -> Result<RefreshStats, String> {
     use futures::stream::{self, StreamExt};
     use std::sync::Arc;
     use tokio::sync::Semaphore;
 
-    const MAX_CONCURRENT: usize = 5;
+    const MAX_CONCURRENT: usize = 2;
     let start = std::time::Instant::now();
 
     crate::modules::logger::log_info(&format!(
-        "Starting batch refresh of all account quotas (Concurrent mode, max: {})",
+        "Starting batch refresh of all account quotas (Smooth rate-limited mode, max: {})",
         MAX_CONCURRENT
     ));
     let accounts = list_accounts()?;
@@ -3700,13 +3729,6 @@ pub async fn refresh_all_quotas_logic() -> Result<RefreshStats, String> {
     let filtered_accounts: Vec<_> = accounts
         .into_iter()
         .filter(|account| {
-            // [MOD] Now we allow refreshing disabled and proxy_disabled accounts
-            // to support forced re-sync from UI.
-            //
-            // 只跳过「验证封禁仍在生效期内」的账号。封禁过期后必须放行刷新 —— 刷新
-            // 正是判断"还封不封"的手段；跳过它会让 quota.is_forbidden 永远是 true：
-            // 403 把它置 true、只有刷新成功才会写回 false，而刷新又在这里被跳过，
-            // 形成环形依赖，账号再也回不来（issue #3630）。
             if let Some(ref q) = account.quota {
                 if q.is_forbidden {
                     let now = chrono::Utc::now().timestamp();
@@ -3736,13 +3758,19 @@ pub async fn refresh_all_quotas_logic() -> Result<RefreshStats, String> {
             let email = account.email.clone();
             let account_id = account.id.clone();
             let permit = semaphore.clone();
+            let handle_clone = app_handle.clone();
             async move {
                 let _guard = permit.acquire().await.unwrap();
+                let jitter_ms = 150 + (rand::random::<u64>() % 151);
+                tokio::time::sleep(tokio::time::Duration::from_millis(jitter_ms)).await;
                 crate::modules::logger::log_info(&format!("  - Processing {}", email));
                 match fetch_quota_with_retry(&mut account).await {
                     Ok(quota) => {
-                        // 批量模式下不在此处反复重写全局大索引 accounts.json (sync_index: false)
-                        match update_account_quota_internal(&account_id, quota, false) {
+                        let res = match update_account_quota_internal(
+                            &account_id,
+                            quota.clone(),
+                            false,
+                        ) {
                             Ok(updated_acc) => {
                                 crate::modules::logger::log_info(&format!("    Success {}", email));
                                 Ok(updated_acc)
@@ -3752,9 +3780,48 @@ pub async fn refresh_all_quotas_logic() -> Result<RefreshStats, String> {
                                 crate::modules::logger::log_error(&msg);
                                 Err(msg)
                             }
+                        };
+                        if let Some(ref handle) = handle_clone {
+                            use tauri::Emitter;
+                            let (out_qos_status, out_qos_reset_seconds) = match &res {
+                                Ok(acc) => (acc.qos_status.as_deref(), acc.qos_reset_seconds),
+                                Err(_) => {
+                                    (account.qos_status.as_deref(), account.qos_reset_seconds)
+                                }
+                            };
+                            let _ = handle.emit(
+                                "accounts://refresh-step",
+                                serde_json::json!({
+                                    "account_id": account_id,
+                                    "email": email,
+                                    "status": "success",
+                                    "quota": Some(&quota),
+                                    "qos_status": out_qos_status,
+                                    "qos_reset_seconds": out_qos_reset_seconds,
+                                    "updated_at": chrono::Utc::now().timestamp()
+                                }),
+                            );
                         }
+                        res
                     }
                     Err(e) => {
+                        let is_429 = is_rate_limit_error(&e);
+                        let status_label = if is_429 { "rate_limited" } else { "failed" };
+                        if let Some(ref handle) = handle_clone {
+                            use tauri::Emitter;
+                            let _ = handle.emit(
+                                "accounts://refresh-step",
+                                serde_json::json!({
+                                    "account_id": account_id,
+                                    "email": email,
+                                    "status": status_label,
+                                    "quota": account.quota.as_ref(),
+                                    "qos_status": account.qos_status.as_deref(),
+                                    "qos_reset_seconds": account.qos_reset_seconds,
+                                    "updated_at": chrono::Utc::now().timestamp()
+                                }),
+                            );
+                        }
                         let msg = format!("Account {}: Fetch quota failed - {}", email, e);
                         crate::modules::logger::log_error(&msg);
                         Err(msg)

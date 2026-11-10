@@ -431,3 +431,26 @@ export function getGroupQuotaSummaries(
     return summaries;
 }
 
+/**
+ * 格式化 ISO 字符串为优雅的相对/局部重置时间提示
+ */
+export function formatResetTime(iso?: string): string {
+    if (!iso) return '';
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return iso;
+    const now = new Date();
+    const diffMinutes = Math.round((date.getTime() - now.getTime()) / 60000);
+    if (diffMinutes > 0 && diffMinutes <= 360) {
+        const hours = Math.floor(diffMinutes / 60);
+        const mins = diffMinutes % 60;
+        const remaining = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        return `${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${remaining})`;
+    }
+    return date.toLocaleString([], {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+

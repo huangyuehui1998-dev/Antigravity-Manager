@@ -59,6 +59,7 @@ export interface AccountTokenStats {
     total_reasoning_tokens?: number;
     total_tokens: number;
     request_count: number;
+    cost_usd?: number;
 }
 
 export interface ModelTokenStats {
@@ -69,6 +70,7 @@ export interface ModelTokenStats {
     total_reasoning_tokens?: number;
     total_tokens: number;
     request_count: number;
+    cost_usd?: number;
 }
 
 export interface ModelTrendPoint {
@@ -89,43 +91,45 @@ export interface TokenStatsSummary {
     total_tokens: number;
     total_requests: number;
     unique_accounts: number;
+    total_cost_usd?: number;
 }
 
 export interface ModelPricingRule {
     input: number; // $ per 1M tokens
     output: number; // $ per 1M tokens
     cached: number; // $ per 1M tokens
+    reasoning?: number; // $ per 1M tokens [4D precision]
 }
 
 export const DEFAULT_PRICING: Record<string, ModelPricingRule> = {
     // Google Gemini 3.x & 2.x
-    'gemini-3.8-flash': { input: 0.75, output: 3.75, cached: 0.075 },
-    'gemini-3.7-flash': { input: 0.75, output: 3.75, cached: 0.075 },
-    'gemini-3.6-flash': { input: 0.75, output: 3.75, cached: 0.075 },
-    'gemini-3.5-flash': { input: 0.75, output: 3.75, cached: 0.075 },
-    'gemini-3-flash': { input: 0.75, output: 3.75, cached: 0.075 },
-    'gemini-2.5-flash': { input: 0.75, output: 3.75, cached: 0.075 },
-    'gemini-2.0-flash': { input: 0.10, output: 0.40, cached: 0.025 },
-    'gemini-3.1-pro': { input: 2.00, output: 12.00, cached: 0.20 },
-    'gemini-3-pro': { input: 2.00, output: 12.00, cached: 0.20 },
-    'gemini-2.5-pro': { input: 2.00, output: 12.00, cached: 0.20 },
+    'gemini-3.8-flash': { input: 0.75, output: 3.75, cached: 0.075, reasoning: 3.75 },
+    'gemini-3.7-flash': { input: 0.75, output: 3.75, cached: 0.075, reasoning: 3.75 },
+    'gemini-3.6-flash': { input: 0.75, output: 3.75, cached: 0.075, reasoning: 3.75 },
+    'gemini-3.5-flash': { input: 0.75, output: 3.75, cached: 0.075, reasoning: 3.75 },
+    'gemini-3-flash': { input: 0.75, output: 3.75, cached: 0.075, reasoning: 3.75 },
+    'gemini-2.5-flash': { input: 0.75, output: 3.75, cached: 0.075, reasoning: 3.75 },
+    'gemini-2.0-flash': { input: 0.10, output: 0.40, cached: 0.025, reasoning: 0.40 },
+    'gemini-3.1-pro': { input: 2.00, output: 12.00, cached: 0.20, reasoning: 12.00 },
+    'gemini-3-pro': { input: 2.00, output: 12.00, cached: 0.20, reasoning: 12.00 },
+    'gemini-2.5-pro': { input: 2.00, output: 12.00, cached: 0.20, reasoning: 12.00 },
     // Anthropic Claude 4.x & 3.x
-    'claude-sonnet-4-6': { input: 3.00, output: 15.00, cached: 0.30 },
-    'claude-sonnet-4-5': { input: 3.00, output: 15.00, cached: 0.30 },
-    'claude-3-7-sonnet': { input: 3.00, output: 15.00, cached: 0.30 },
-    'claude-3-5-sonnet': { input: 3.00, output: 15.00, cached: 0.30 },
-    'claude-opus-4-6': { input: 5.00, output: 25.00, cached: 0.50 },
-    'claude-opus-4-5': { input: 5.00, output: 25.00, cached: 0.50 },
-    'claude-3-opus': { input: 5.00, output: 25.00, cached: 0.50 },
-    'claude-haiku-4': { input: 0.80, output: 4.00, cached: 0.08 },
-    'claude-3-5-haiku': { input: 0.80, output: 4.00, cached: 0.08 },
+    'claude-sonnet-4-6': { input: 3.00, output: 15.00, cached: 0.30, reasoning: 15.00 },
+    'claude-sonnet-4-5': { input: 3.00, output: 15.00, cached: 0.30, reasoning: 15.00 },
+    'claude-3-7-sonnet': { input: 3.00, output: 15.00, cached: 0.30, reasoning: 15.00 },
+    'claude-3-5-sonnet': { input: 3.00, output: 15.00, cached: 0.30, reasoning: 15.00 },
+    'claude-opus-4-6': { input: 5.00, output: 25.00, cached: 0.50, reasoning: 25.00 },
+    'claude-opus-4-5': { input: 5.00, output: 25.00, cached: 0.50, reasoning: 25.00 },
+    'claude-3-opus': { input: 5.00, output: 25.00, cached: 0.50, reasoning: 25.00 },
+    'claude-haiku-4': { input: 0.80, output: 4.00, cached: 0.08, reasoning: 4.00 },
+    'claude-3-5-haiku': { input: 0.80, output: 4.00, cached: 0.08, reasoning: 4.00 },
     // OpenAI Models
-    'gpt-4o': { input: 2.50, output: 10.00, cached: 1.25 },
-    'gpt-4o-mini': { input: 0.15, output: 0.60, cached: 0.075 },
-    'o3-mini': { input: 1.10, output: 4.40, cached: 0.55 },
-    'o1': { input: 15.00, output: 60.00, cached: 7.50 },
+    'gpt-4o': { input: 2.50, output: 10.00, cached: 1.25, reasoning: 10.00 },
+    'gpt-4o-mini': { input: 0.15, output: 0.60, cached: 0.075, reasoning: 0.60 },
+    'o3-mini': { input: 1.10, output: 4.40, cached: 0.55, reasoning: 4.40 },
+    'o1': { input: 15.00, output: 60.00, cached: 7.50, reasoning: 60.00 },
     // Default Fallback
-    'default': { input: 1.00, output: 5.00, cached: 0.10 },
+    'default': { input: 1.00, output: 5.00, cached: 0.10, reasoning: 5.00 },
 };
 
 const PRICING_STORAGE_KEY = 'antigravity_model_pricing_v2026';
@@ -336,6 +340,30 @@ const TokenStats: React.FC = () => {
     });
     const [showPricingModal, setShowPricingModal] = useState(false);
 
+    // 从后端统一定价中心拉取权威 4D 定价字典，与前端保持同步
+    useEffect(() => {
+        invoke<Record<string, ModelPricingRule>>('get_model_pricing_catalog')
+            .then(backendPricing => {
+                if (backendPricing && Object.keys(backendPricing).length > 0) {
+                    setPricing(() => {
+                        const saved = localStorage.getItem(PRICING_STORAGE_KEY);
+                        if (saved) {
+                            try {
+                                const custom = JSON.parse(saved);
+                                return { ...DEFAULT_PRICING, ...backendPricing, ...custom };
+                            } catch {
+                                return { ...DEFAULT_PRICING, ...backendPricing };
+                            }
+                        }
+                        return { ...DEFAULT_PRICING, ...backendPricing };
+                    });
+                }
+            })
+            .catch(err => {
+                console.warn('Failed to fetch backend model pricing catalog:', err);
+            });
+    }, []);
+
     const getPricing = useCallback((modelName: string): ModelPricingRule => {
         let key = modelName.toLowerCase().trim();
         // 1. 直接精确命中
@@ -363,17 +391,24 @@ const TokenStats: React.FC = () => {
     }, [pricing]);
 
     const calculateModelCost = useCallback((m: ModelTokenStats): number => {
+        if (m.cost_usd !== undefined && m.cost_usd > 0) {
+            return m.cost_usd;
+        }
         const p = getPricing(m.model);
         const uncachedInput = Math.max(0, m.total_input_tokens - (m.total_cached_tokens || 0));
         const inputCost = (uncachedInput * p.input) / 1_000_000;
         const cacheCost = ((m.total_cached_tokens || 0) * p.cached) / 1_000_000;
         const outputCost = (m.total_output_tokens * p.output) / 1_000_000;
-        return inputCost + cacheCost + outputCost;
+        const reasoningCost = ((m.total_reasoning_tokens || 0) * (p.reasoning ?? p.output)) / 1_000_000;
+        return inputCost + cacheCost + outputCost + reasoningCost;
     }, [getPricing]);
 
     const totalEstimatedCost = useMemo(() => {
+        if (summary?.total_cost_usd !== undefined && summary.total_cost_usd > 0) {
+            return summary.total_cost_usd;
+        }
         return modelData.reduce((sum, m) => sum + calculateModelCost(m), 0);
-    }, [modelData, calculateModelCost]);
+    }, [summary, modelData, calculateModelCost]);
 
     // 主力模型列表数据（带单项费用）
     const modelShareItems: ModelShareItem[] = useMemo(() => {

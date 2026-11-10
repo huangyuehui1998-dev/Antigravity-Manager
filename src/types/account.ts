@@ -16,7 +16,7 @@ export interface Account {
     protected_models?: string[];
     live_limited_models?: Record<string, LiveLimitStatus>;
     custom_label?: string;  // 用户自定义标签
-    qos_status?: 'suspicious' | 'jailed' | 'probing' | 'half_open' | null; // 运行时 QoS 状态
+    qos_status?: 'suspicious' | 'jailed' | 'probing' | 'half_open' | 'rate_limited' | null; // 运行时 QoS 状态
     qos_reset_seconds?: number | null; // 运行时 QoS 冷却剩余秒数
     validation_blocked?: boolean;
     validation_blocked_until?: number;
@@ -62,6 +62,7 @@ export interface TokenData {
     expiry_timestamp: number;
     token_type: string;
     email?: string;
+    project_id?: string;
 }
 
 export interface QuotaData {

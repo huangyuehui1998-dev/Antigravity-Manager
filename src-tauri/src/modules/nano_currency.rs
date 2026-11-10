@@ -63,7 +63,8 @@ impl TieredPricing {
         thinking: u64,
         completion: u64,
     ) -> NanoUsd {
-        let p_cost = NanoUsd::from_tokens_checked(prompt, self.prompt_nano);
+        let uncached_prompt = prompt.saturating_sub(cached);
+        let p_cost = NanoUsd::from_tokens_checked(uncached_prompt, self.prompt_nano);
         let cp_cost = NanoUsd::from_tokens_checked(cached, self.cached_prompt_nano);
         let th_cost = NanoUsd::from_tokens_checked(thinking, self.thinking_nano);
         let c_cost = NanoUsd::from_tokens_checked(completion, self.completion_nano);
@@ -73,4 +74,146 @@ impl TieredPricing {
             .saturating_add(th_cost)
             .saturating_add(c_cost)
     }
+}
+
+pub fn get_model_pricing(model: &str) -> TieredPricing {
+    let m = model.to_lowercase();
+    if m.contains("claude-opus") || m.contains("claude-3-opus") || m.contains("opus") {
+        TieredPricing {
+            prompt_nano: 15_000_000_000,
+            cached_prompt_nano: 3_750_000_000,
+            thinking_nano: 75_000_000_000,
+            completion_nano: 75_000_000_000,
+        }
+    } else if m.contains("claude-3-7") || m.contains("claude-3-5-sonnet") || m.contains("sonnet") {
+        TieredPricing {
+            prompt_nano: 3_000_000_000,
+            cached_prompt_nano: 750_000_000,
+            thinking_nano: 15_000_000_000,
+            completion_nano: 15_000_000_000,
+        }
+    } else if m.contains("claude-3-5-haiku") || m.contains("haiku") {
+        TieredPricing {
+            prompt_nano: 800_000_000,
+            cached_prompt_nano: 200_000_000,
+            thinking_nano: 4_000_000_000,
+            completion_nano: 4_000_000_000,
+        }
+    } else if m.contains("gemini-2.0-flash")
+        || m.contains("gemini-2.5-flash")
+        || m.contains("gemini-3.8-flash")
+        || m.contains("flash")
+    {
+        TieredPricing {
+            prompt_nano: 150_000_000,
+            cached_prompt_nano: 37_500_000,
+            thinking_nano: 600_000_000,
+            completion_nano: 600_000_000,
+        }
+    } else if m.contains("gpt-4o-mini") {
+        TieredPricing {
+            prompt_nano: 150_000_000,
+            cached_prompt_nano: 75_000_000,
+            thinking_nano: 600_000_000,
+            completion_nano: 600_000_000,
+        }
+    } else if m.contains("gpt-4o") {
+        TieredPricing {
+            prompt_nano: 2_500_000_000,
+            cached_prompt_nano: 1_250_000_000,
+            thinking_nano: 10_000_000_000,
+            completion_nano: 10_000_000_000,
+        }
+    } else if m.contains("o3-mini") || m.contains("o1-mini") {
+        TieredPricing {
+            prompt_nano: 1_100_000_000,
+            cached_prompt_nano: 550_000_000,
+            thinking_nano: 4_400_000_000,
+            completion_nano: 4_400_000_000,
+        }
+    } else if m.contains("o1") || m.contains("o3") {
+        TieredPricing {
+            prompt_nano: 15_000_000_000,
+            cached_prompt_nano: 7_500_000_000,
+            thinking_nano: 60_000_000_000,
+            completion_nano: 60_000_000_000,
+        }
+    } else if m.contains("gpt-4-turbo") || m.contains("gpt-4") {
+        TieredPricing {
+            prompt_nano: 10_000_000_000,
+            cached_prompt_nano: 5_000_000_000,
+            thinking_nano: 30_000_000_000,
+            completion_nano: 30_000_000_000,
+        }
+    } else if (m.contains("gemini") && m.contains("pro")) || m.contains("pro") {
+        TieredPricing {
+            prompt_nano: 1_250_000_000,
+            cached_prompt_nano: 312_500_000,
+            thinking_nano: 5_000_000_000,
+            completion_nano: 5_000_000_000,
+        }
+    } else {
+        TieredPricing {
+            prompt_nano: 1_000_000_000,
+            cached_prompt_nano: 250_000_000,
+            thinking_nano: 3_000_000_000,
+            completion_nano: 3_000_000_000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelPricingRuleDto {
+    pub input: f64,
+    pub output: f64,
+    pub cached: f64,
+    pub reasoning: f64,
+}
+
+pub fn get_standard_pricing_catalog() -> std::collections::HashMap<String, ModelPricingRuleDto> {
+    let models = vec![
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-3-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-3.1-pro",
+        "gemini-3-pro",
+        "gemini-2.5-pro",
+        "gemini-2.0-pro",
+        "claude-sonnet-4-6",
+        "claude-sonnet-4-5",
+        "claude-3-7-sonnet",
+        "claude-3-5-sonnet",
+        "claude-opus-4-6",
+        "claude-opus-4-5",
+        "claude-3-opus",
+        "claude-haiku-4",
+        "claude-3-5-haiku",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo",
+        "gpt-4",
+        "o1",
+        "o1-mini",
+        "o3",
+        "o3-mini",
+        "default",
+    ];
+    let mut map = std::collections::HashMap::new();
+    for m in models {
+        let p = get_model_pricing(m);
+        map.insert(
+            m.to_string(),
+            ModelPricingRuleDto {
+                input: p.prompt_nano as f64 / 1_000_000_000.0,
+                output: p.completion_nano as f64 / 1_000_000_000.0,
+                cached: p.cached_prompt_nano as f64 / 1_000_000_000.0,
+                reasoning: p.thinking_nano as f64 / 1_000_000_000.0,
+            },
+        );
+    }
+    map
 }

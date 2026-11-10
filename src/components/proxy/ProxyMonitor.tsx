@@ -125,7 +125,7 @@ const LogTable: React.FC<LogTableProps> = ({
 }) => {
     const { accounts } = useAccountStore();
     const accountQosByEmail = useMemo(() => {
-        const map = new Map<string, 'suspicious' | 'jailed' | 'probing' | 'half_open'>();
+        const map = new Map<string, 'suspicious' | 'jailed' | 'probing' | 'half_open' | 'rate_limited'>();
         accounts.forEach(acc => {
             if (acc.email && acc.qos_status) {
                 map.set(acc.email.toLowerCase(), acc.qos_status);

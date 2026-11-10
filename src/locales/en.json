@@ -4,6 +4,21 @@
             "subtitle": "5-Tier Adaptive Path Discovery · Official Specs Cross-Check · Anti-Cheat Canary · Fail-Open"
         }
     },
+    "analytics_hub": {
+        "tabs": {
+            "financial": "Financial Value Cockpit",
+            "tokens": "Model Token Profile",
+            "diagnostics": "Model Verification & Velocity Telemetry",
+            "logs": "System Call Logs"
+        }
+    },
+    "api_proxy_hub": {
+        "tabs": {
+            "gateway": "Reverse Proxy Gateway",
+            "tokens": "User Token Distribution",
+            "security": "IP Protection & Security Rules"
+        }
+    },
     "common": {
         "loading": "Loading...",
         "empty": "Empty",
@@ -294,10 +309,13 @@
         "forbidden_tooltip": "API returned 403 Forbidden, account has no permission for Gemini Code Assist",
         "forbidden_msg": "Forbidden, skip auto-refresh",
         "status": {
-            "forbidden": "403 Forbidden",
-            "disabled": "Account Disabled",
+            "title": "Health & Cooldown",
+            "forbidden": "Forbidden",
+            "disabled": "Disabled",
             "proxy_disabled": "Proxy Disabled",
             "validation_required": "Verification Required",
+            "cooling": "Cooling",
+            "healthy": "Healthy",
             "risk_controlled": "Risk / Rate Limited",
             "oauth_reauth_required": "OAuth Re-auth Required",
             "violation_blocked": "Blocked due to Violation"
@@ -392,11 +410,16 @@
         "remaining_quota": "Remaining: {{percentage}}%",
         "reset_in": "Reset: {{time}}",
         "supported_official_models": "Supported Official Models ({{count}}):",
+        "unlock_account": "Unlock Account",
+        "releasing": "Releasing...",
         "details": {
             "title": "Quota Details",
             "model_quota": "Individual Model Quotas",
             "protected_models": "Protected Models",
-            "thinking_budget": "Thinking Budget"
+            "thinking_budget": "Thinking Budget",
+            "metadata": "Account Identity & Fingerprint",
+            "last_used": "Last Used",
+            "created_at": "Created At"
         },
         "toast": {
             "proxy_enabled": "Enabled proxy for {{count}} accounts",
@@ -453,13 +476,31 @@
         },
         "table": {
             "email": "Email",
+            "status": "Status",
             "quota": "Model Quota",
             "weekly_quota": "Weekly Quota",
+            "consumption": "Consumption",
             "last_used": "Last Used",
             "actions": "Actions",
             "sort_by_reset_time": "Click to sort by quota reset time",
             "sort_by_last_used": "Click to sort by last used time"
         },
+        "quota_capsule": {
+            "5h_and_weekly": "5H / Weekly",
+            "5h_quota": "5H Quota",
+            "weekly_quota": "Weekly Quota",
+            "reset_time": "Reset Time"
+        },
+        "quota_groups": {
+            "title": "Model Quota Breakdown"
+        },
+        "consumption": {
+            "title": "4D Consumption Ledger"
+        },
+        "current_active": "Active",
+        "switch": "Switch IDE",
+        "unrefreshed_hint": "Unrefreshed or no quota metrics",
+        "click_to_view_error": "Click to view error details",
         "drag_to_reorder": "Drag to reorder",
         "drag_disabled_during_sort": "Column sorting is active; drag-to-reorder is paused",
         "empty": {

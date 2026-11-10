@@ -3,6 +3,12 @@
 > 完整版本历史记录。返回项目主页请查看 [README_ZH.md](README_ZH.md) | [English Changelog](CHANGELOG_EN.md)。
 
 *   **版本演进**:
+    *   **v5.4.0 (2026-11-10)**:
+        -   **[账号表格工业级母子抽屉与极致降噪重构]**: 将账号主表格精简至 5 个核心列，彻底根治 30+ 账号时的滚动掉帧；表头与数据列严格 1:1 物理对齐；全新引入滑出式 `AccountDetailDrawer` 母子抽屉，支持 `Esc` 快捷退出与优雅无感关闭；全选 Checkbox 升级为全选/半选（`indeterminate`）标准状态机，解决跨页选择错乱与拖拽乱序。(Fixes #3770)
+        -   **[429 假刷新与自锁彻底根除及流式就地更新]**: 移除限流导致的 10 分钟自锁毒药与旧缓存冒充成功逻辑；修复 401/403 状态码映射以激活静默 OAuth 换票重试；引入 Tauri `accounts://refresh-step` 流式步进事件，实现单行高亮脉冲就地刷新。(Fixes #3771)
+        -   **[单账本收敛与纳美元四维精确计费]**: 统一落地不可篡改流水表 `request_usage_log`；四维计费精准扣除 Cache 缓存彻底杜绝双重扣费；修正 `total_tokens` 计算杜绝叠加虚高；补齐 OpenAI 全系（GPT-4o、o1、o3）精确价格。(Fixes #3772)
+        -   **[配额与状态生命周期闭环]**: `DoubleQuotaCapsule` 自动萃取主力模型配额，未刷新账号统一呈现优雅占位符杜绝“假满额”；QoS 60s 倒计时实时走字并在刷新成功后自动解冻；抽屉解锁按钮一键重置 `validation_blocked` 与 `is_forbidden`。(Fixes #3773)
+        -   **[视觉降噪与设计系统标准化]**: 彻底清理 Tabs 中的 Emoji 噪声，统一升级为现代 Lucide SVG 矢量图标；模块化拆解 `ApiProxy.tsx` 巨石组件，补全中英双语国际化。(Fixes #3774)
     *   **v5.3.1 (2026-11-03)**:
         -   **[Kiro 本地 Credit 快照显式同步与重置节奏对齐]**: 在 `KiroCreditBar` 补齐显式「同步」交互按钮，复用既有 `refresh_financial_analytics` 数据管线（无多余冗余 API），精准解析并弹出 `Kiro: 扫描 X, 写入 Y, 跳过 Z` 结构化状态；严格写实：Credit 数据 100% 读自本地 SQLite (`kiro.kiroAgent` usageState 快照，对齐 UsageBar/PaceBar 语义；绝非 Protobuf 会话引擎)；无 Kiro 环境下返回 `missing_db` 并保留真实空态引导，绝不伪造 0/0 虚假成功；本地动态解析 `reset_at` 补齐距重置倒计时 (`距重置 ≈ Nd Nh`)。(Fixes #3760)
         -   **[Windows UIA 单文本节点百分比排版全面加固]**: 针对 Chromium/WebView2 在 JSX `{expr}%` 拆分导致 Windows DirectWrite 与 UIA 辅助阅读割裂换行的物理隐患，对 `CyberCockpitView`、`AppleBentoView` 及 `TopModelsShareCard` 全面重构为模板字符串单 Text 节点渲染 ``{`${Math.round(val)}%`}``，静态 Regex 扫描全量通过。(Fixes #3761)

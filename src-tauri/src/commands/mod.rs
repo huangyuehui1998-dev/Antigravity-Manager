@@ -126,6 +126,40 @@ pub async fn release_account_qos_jail(
         tm.release_account_qos_jail(&account_id);
     }
 
+    if let Ok(mut account) = modules::account::load_account(&account_id) {
+        account.qos_status = None;
+        account.qos_reset_seconds = None;
+        account.validation_blocked = false;
+        account.validation_blocked_until = None;
+        account.validation_blocked_reason = None;
+        account.validation_url = None;
+        if let Some(ref mut q) = account.quota {
+            q.is_forbidden = false;
+            q.forbidden_reason = None;
+        }
+        if account.proxy_disabled
+            && account.proxy_disabled_reason.as_ref().map_or(false, |r| {
+                r.starts_with("Forbidden (403)")
+                    || r.contains("403 Forbidden")
+                    || r.contains("VALIDATION_REQUIRED")
+                    || r == "quota_protection"
+            })
+        {
+            account.proxy_disabled = false;
+            account.proxy_disabled_reason = None;
+            account.proxy_disabled_at = None;
+        }
+        let _ = modules::account::save_account(&account);
+        if let Ok(mut index) = modules::account::load_account_index() {
+            if let Some(summary) = index.accounts.iter_mut().find(|a| a.id == account_id) {
+                summary.proxy_disabled = account.proxy_disabled;
+                summary.disabled = account.disabled;
+                let _ = modules::account::save_account_index(&index);
+            }
+        }
+        crate::proxy::server::trigger_account_reload(&account_id);
+    }
+
     Ok(())
 }
 
@@ -382,7 +416,7 @@ pub async fn refresh_all_quotas_internal(
     proxy_state: &crate::commands::proxy::ProxyServiceState,
     app_handle: Option<tauri::AppHandle>,
 ) -> Result<RefreshStats, String> {
-    let stats = modules::account::refresh_all_quotas_logic().await?;
+    let stats = modules::account::refresh_all_quotas_logic_with_handle(app_handle.clone()).await?;
 
     // 同步到运行中的反代服务（如果已启动）
     let instance_lock = proxy_state.instance.read().await;
@@ -1681,6 +1715,14 @@ pub async fn get_token_stats_account_trend_daily(
     days: i64,
 ) -> Result<Vec<crate::modules::token_stats::AccountTrendPoint>, String> {
     crate::modules::token_stats::get_account_trend_daily(days)
+}
+
+#[tauri::command]
+pub async fn get_model_pricing_catalog() -> Result<
+    std::collections::HashMap<String, crate::modules::nano_currency::ModelPricingRuleDto>,
+    String,
+> {
+    Ok(crate::modules::nano_currency::get_standard_pricing_catalog())
 }
 
 #[tauri::command]

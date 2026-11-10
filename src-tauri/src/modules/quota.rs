@@ -402,7 +402,21 @@ pub async fn fetch_quota_with_cache(
                         return Ok((q, project_id.clone()));
                     }
 
+                    let retry_after = response
+                        .headers()
+                        .get("retry-after")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|s| s.parse::<u64>().ok());
                     let text = response.text().await.unwrap_or_default();
+                    let err_msg = if status == rquest::StatusCode::TOO_MANY_REQUESTS {
+                        format!(
+                            "RateLimited (429, retry_after: {}s): {}",
+                            retry_after.unwrap_or(60),
+                            text
+                        )
+                    } else {
+                        format!("API Error: {} - {}", status, text)
+                    };
 
                     // 429/5xx: fallback to next endpoint
                     if has_next
@@ -413,15 +427,12 @@ pub async fn fetch_quota_with_cache(
                             "Quota API {} returned {}, falling back to next endpoint",
                             ep_url, status
                         ));
-                        last_error = Some(AppError::Unknown(format!("HTTP {} - {}", status, text)));
+                        last_error = Some(AppError::Network(err_msg, Some(status.as_u16())));
                         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         continue; // 换下一个 endpoint
                     }
 
-                    return Err(AppError::Unknown(format!(
-                        "API Error: {} - {}",
-                        status, text
-                    )));
+                    return Err(AppError::Network(err_msg, Some(status.as_u16())));
                 }
 
                 health_tracker.mark_success(ep_url);

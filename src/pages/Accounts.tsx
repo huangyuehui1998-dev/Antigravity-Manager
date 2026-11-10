@@ -13,7 +13,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import AccountDetailsDialog from "../components/accounts/AccountDetailsDialog";
+import AccountDetailDrawer from "../components/accounts/AccountDetailDrawer";
 import AccountGrid from "../components/accounts/AccountGrid";
 import AccountTable from "../components/accounts/AccountTable";
 import AddAccountDialog from "../components/accounts/AddAccountDialog";
@@ -57,7 +57,6 @@ function Accounts() {
     warmUpAccounts,
     warmUpAccount,
     updateAccountLabel,
-    updateAccountPriority,
   } = useAccountStore();
   const { config } = useConfigStore();
 
@@ -287,6 +286,41 @@ function Accounts() {
     setCurrentPage(1);
   }, [viewMode]);
 
+  // 流式事件总线监听：局部行级渐进式无感刷新
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<{ account_id: string; email: string; status: string; quota: any; qos_status?: Account['qos_status']; qos_reset_seconds?: number }>('accounts://refresh-step', (event) => {
+        const { account_id, quota, qos_status, qos_reset_seconds, status } = event.payload;
+        useAccountStore.setState((state) => ({
+          accounts: state.accounts.map((acc) => {
+            if (acc.id !== account_id) return acc;
+            const isSuccess = status === 'success';
+            const updatedQuota = quota ?? acc.quota;
+            return {
+              ...acc,
+              quota: updatedQuota,
+              qos_status: isSuccess ? (qos_status ?? null) : (qos_status !== undefined ? qos_status : acc.qos_status),
+              qos_reset_seconds: isSuccess ? (qos_reset_seconds ?? null) : (qos_reset_seconds !== undefined ? qos_reset_seconds : acc.qos_reset_seconds),
+              validation_blocked: isSuccess && !updatedQuota?.is_forbidden ? false : acc.validation_blocked,
+            };
+          }),
+        }));
+        setRefreshingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(account_id);
+          return next;
+        });
+      }).then((fn) => {
+        unlisten = fn;
+      }).catch(() => {});
+    }).catch(() => {});
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   // 搜索过滤逻辑
   const searchedAccounts = useMemo(() => {
     if (!searchQuery) return accounts;
@@ -377,15 +411,22 @@ function Accounts() {
     }
   };
 
+  const lastRefreshTimeRef = useRef<Record<string, number>>({});
+
   const handleRefresh = async (accountId: string) => {
+    const now = Date.now();
+    const lastTime = lastRefreshTimeRef.current[accountId] || 0;
+    if (now - lastTime < 1000) {
+      return; // 1s 防抖
+    }
+    lastRefreshTimeRef.current[accountId] = now;
+
     setRefreshingIds((prev) => {
       const next = new Set(prev);
       next.add(accountId);
       return next;
     });
     try {
-      await refreshQuota(accountId);
-      await refreshQuota(accountId);
       await refreshQuota(accountId);
       showToast(t("common.success"), "success");
     } catch (error) {
@@ -506,22 +547,39 @@ function Accounts() {
       const details: string[] = [];
 
       if (isBatch) {
-        // 批量刷新选中
+        // 批量刷新选中 (错峰调度队列: 限制并发 2，每请求间隔 200ms Jitter)
         const ids = Array.from(selectedIds);
         setRefreshingIds(new Set(ids));
 
-        const results = await Promise.allSettled(
-          ids.map((id) => refreshQuota(id)),
-        );
+        const concurrency = 2;
+        let queueIndex = 0;
+        const results: PromiseSettledResult<void>[] = new Array(ids.length);
+
+        const worker = async () => {
+          while (queueIndex < ids.length) {
+            const currentIdx = queueIndex++;
+            const id = ids[currentIdx];
+            try {
+              await refreshQuota(id);
+              results[currentIdx] = { status: "fulfilled", value: undefined };
+            } catch (err) {
+              results[currentIdx] = { status: "rejected", reason: err };
+            }
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+        };
+
+        const workers = Array.from({ length: Math.min(concurrency, ids.length) }, () => worker());
+        await Promise.all(workers);
 
         results.forEach((result, index) => {
           const id = ids[index];
           const email = accounts.find((a) => a.id === id)?.email || id;
-          if (result.status === "fulfilled") {
+          if (result && result.status === "fulfilled") {
             successCount++;
           } else {
             failedCount++;
-            details.push(`${email}: ${result.reason}`);
+            details.push(`${email}: ${result?.status === 'rejected' ? result.reason : 'Failed'}`);
           }
         });
       } else {
@@ -1183,10 +1241,15 @@ function Accounts() {
         </div>
       )}
 
-      <AccountDetailsDialog
+      <AccountDetailDrawer
         account={accounts.find(a => a.id === detailsAccount?.id) || null}
+        isOpen={!!detailsAccount}
         onClose={() => setDetailsAccount(null)}
-        onUpdatePriority={updateAccountPriority}
+        onRefresh={handleRefresh}
+        onSwitch={handleSwitch}
+        isCurrent={currentAccount?.id === detailsAccount?.id}
+        isRefreshing={refreshingIds.has(detailsAccount?.id || '')}
+        isSwitching={switchingAccountId === detailsAccount?.id}
       />
       <DeviceFingerprintDialog
         account={deviceAccount}

@@ -13,6 +13,8 @@ pub struct TokenStatsAggregated {
     pub total_reasoning_tokens: u64,
     pub total_tokens: u64,
     pub request_count: u64,
+    #[serde(default)]
+    pub cost_usd: f64,
 }
 
 /// Per-account token statistics
@@ -26,6 +28,8 @@ pub struct AccountTokenStats {
     pub total_reasoning_tokens: u64,
     pub total_tokens: u64,
     pub request_count: u64,
+    #[serde(default)]
+    pub cost_usd: f64,
 }
 
 /// Summary statistics
@@ -39,6 +43,8 @@ pub struct TokenStatsSummary {
     pub total_tokens: u64,
     pub total_requests: u64,
     pub unique_accounts: u64,
+    #[serde(default)]
+    pub total_cost_usd: f64,
 }
 
 /// Per-model token statistics
@@ -52,6 +58,8 @@ pub struct ModelTokenStats {
     pub total_reasoning_tokens: u64,
     pub total_tokens: u64,
     pub request_count: u64,
+    #[serde(default)]
+    pub cost_usd: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +77,7 @@ pub struct AccountTrendPoint {
 
 pub(crate) fn get_db_path() -> Result<PathBuf, String> {
     let data_dir = crate::modules::account::get_data_dir()?;
-    Ok(data_dir.join("token_stats.db"))
+    Ok(data_dir.join("usage_ledger.db"))
 }
 
 pub(crate) fn connect_db() -> Result<Connection, String> {
@@ -170,6 +178,12 @@ pub fn init_db() -> Result<(), String> {
         "token_usage",
         "reasoning_tokens INTEGER NOT NULL DEFAULT 0",
     )?;
+    add_column_if_missing(&conn, "token_usage", "account_id TEXT NOT NULL DEFAULT ''")?;
+    add_column_if_missing(
+        &conn,
+        "token_usage",
+        "cost_nanousd INTEGER NOT NULL DEFAULT 0",
+    )?;
     add_column_if_missing(
         &conn,
         "token_stats_hourly",
@@ -181,10 +195,107 @@ pub fn init_db() -> Result<(), String> {
         "total_reasoning_tokens INTEGER NOT NULL DEFAULT 0",
     )?;
 
+    // Authoritative single ledger: request_usage_log
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS request_usage_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_id TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            account_id TEXT NOT NULL,
+            user_token_id TEXT,
+            client_source TEXT,
+            model TEXT NOT NULL,
+            input_tokens INTEGER NOT NULL,
+            output_tokens INTEGER NOT NULL,
+            cached_tokens INTEGER NOT NULL DEFAULT 0,
+            reasoning_tokens INTEGER NOT NULL DEFAULT 0,
+            cost_nanousd INTEGER NOT NULL DEFAULT 0,
+            latency_ms INTEGER NOT NULL DEFAULT 0,
+            status_code INTEGER NOT NULL DEFAULT 200
+        )",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_usage_account_time ON request_usage_log(account_id, timestamp)",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_usage_model ON request_usage_log(model)",
+        [],
+    );
+
+    migrate_legacy_token_stats_if_needed(&conn);
+
     Ok(())
 }
 
-/// Record token usage from a request
+fn migrate_legacy_token_stats_if_needed(conn: &Connection) {
+    if let Ok(data_dir) = crate::modules::account::get_data_dir() {
+        let old_db = data_dir.join("token_stats.db");
+        if old_db.exists() {
+            let count: i64 = conn
+                .query_row("SELECT count(*) FROM token_usage", [], |r| r.get(0))
+                .unwrap_or(0);
+            if count == 0 {
+                let escaped = old_db.to_string_lossy().replace('\'', "''");
+                if conn
+                    .execute(
+                        &format!("ATTACH DATABASE '{}' AS old_token_db", escaped),
+                        [],
+                    )
+                    .is_ok()
+                {
+                    let _ = conn.execute(
+                        "INSERT OR IGNORE INTO token_usage (timestamp, account_email, account_id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, total_tokens, cost_nanousd)
+                         SELECT timestamp, account_email, account_email, model, input_tokens, output_tokens,
+                                COALESCE(cached_tokens, 0), COALESCE(reasoning_tokens, 0), total_tokens, 0
+                         FROM old_token_db.token_usage",
+                        [],
+                    );
+                    let _ = conn.execute("DETACH DATABASE old_token_db", []);
+                }
+            }
+        }
+    }
+
+    // Backfill cost_nanousd for legacy rows where cost is 0
+    if let Ok(mut stmt) = conn.prepare("SELECT id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens FROM token_usage WHERE cost_nanousd = 0 LIMIT 2000") {
+        if let Ok(rows) = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, u32>(2)?,
+                r.get::<_, u32>(3)?,
+                r.get::<_, u32>(4)?,
+                r.get::<_, u32>(5)?,
+            ))
+        }) {
+            let updates: Vec<_> = rows.filter_map(|r| r.ok()).collect();
+            for (id, model, in_tok, out_tok, cached_tok, reasoning_tok) in updates {
+                let pricing = crate::modules::nano_currency::get_model_pricing(&model);
+                let cost = pricing.calculate_cost(in_tok as u64, cached_tok as u64, reasoning_tok as u64, out_tok as u64);
+                let _ = conn.execute("UPDATE token_usage SET cost_nanousd = ?1 WHERE id = ?2", params![cost.0, id]);
+            }
+        }
+    }
+
+    // Populate request_usage_log from token_usage if empty
+    let req_count: i64 = conn
+        .query_row("SELECT count(*) FROM request_usage_log", [], |r| r.get(0))
+        .unwrap_or(0);
+    if req_count == 0 {
+        let _ = conn.execute(
+            "INSERT INTO request_usage_log (request_id, timestamp, account_id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, cost_nanousd)
+             SELECT 'legacy-' || id, timestamp, COALESCE(NULLIF(account_id, ''), account_email), model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, cost_nanousd
+             FROM token_usage",
+            [],
+        );
+    }
+}
+
+/// Record token usage from a request (backward-compatible wrapper)
 pub fn record_usage(
     account_email: &str,
     model: &str,
@@ -193,18 +304,72 @@ pub fn record_usage(
     cached_tokens: u32,
     reasoning_tokens: u32,
 ) -> Result<(), String> {
-    let conn = connect_db()?;
+    let req_id = uuid::Uuid::new_v4().to_string();
     let timestamp = chrono::Local::now().timestamp();
-    let total_tokens = input_tokens + output_tokens;
+    record_detailed_usage(
+        &req_id,
+        timestamp,
+        account_email,
+        None,
+        None,
+        None,
+        model,
+        input_tokens,
+        output_tokens,
+        cached_tokens,
+        reasoning_tokens,
+        0,
+        200,
+    )
+}
 
-    // Insert into raw usage table
+/// Record authoritative usage into request_usage_log, token_usage, and hourly aggregates with 4D dynamic pricing
+pub fn record_detailed_usage(
+    request_id: &str,
+    timestamp: i64,
+    account_email: &str,
+    account_id: Option<&str>,
+    user_token_id: Option<&str>,
+    client_source: Option<&str>,
+    model: &str,
+    input_tokens: u32,
+    output_tokens: u32,
+    cached_tokens: u32,
+    reasoning_tokens: u32,
+    latency_ms: u32,
+    status_code: u16,
+) -> Result<(), String> {
+    let conn = connect_db()?;
+    let pricing = crate::modules::nano_currency::get_model_pricing(model);
+    let cost = pricing.calculate_cost(
+        input_tokens as u64,
+        cached_tokens as u64,
+        reasoning_tokens as u64,
+        output_tokens as u64,
+    );
+    let cost_nanousd = cost.0;
+    let acc_id = account_id.unwrap_or(account_email);
+
+    // 1. Authoritative ledger entry
     conn.execute(
-        "INSERT INTO token_usage (timestamp, account_email, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, total_tokens)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![timestamp, account_email, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, total_tokens],
+        "INSERT INTO request_usage_log (request_id, timestamp, account_id, user_token_id, client_source, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, cost_nanousd, latency_ms, status_code)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        params![request_id, timestamp, acc_id, user_token_id, client_source, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, cost_nanousd, latency_ms, status_code],
     ).map_err(|e| e.to_string())?;
 
-    let hour_bucket = chrono::Local::now().format("%Y-%m-%d %H:00").to_string();
+    // 2. Main token_usage entry (4D tokens + cost)
+    let total_tokens = input_tokens + output_tokens;
+    conn.execute(
+        "INSERT INTO token_usage (timestamp, account_email, account_id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, total_tokens, cost_nanousd)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![timestamp, account_email, acc_id, model, input_tokens, output_tokens, cached_tokens, reasoning_tokens, total_tokens, cost_nanousd],
+    ).map_err(|e| e.to_string())?;
+
+    // 3. Hourly stats aggregation
+    let hour_bucket = chrono::DateTime::from_timestamp(timestamp, 0)
+        .map(|dt| dt.format("%Y-%m-%d %H:00").to_string())
+        .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d %H:00").to_string());
+
     conn.execute(
         "INSERT INTO token_stats_hourly (hour_bucket, account_email, total_input_tokens, total_output_tokens, total_cached_tokens, total_reasoning_tokens, total_tokens, request_count)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)
@@ -229,7 +394,6 @@ pub(crate) fn populate_account_consumption(
     if accounts.is_empty() {
         return Ok(());
     }
-    let is_single = accounts.len() == 1;
     let conn = connect_db()?;
     let now = chrono::Utc::now().timestamp();
     let ts_5h = now - 18000;
@@ -237,48 +401,33 @@ pub(crate) fn populate_account_consumption(
     let ts_30d = now - 2592000;
 
     for account in accounts.iter_mut() {
-        let prefix = account.email.split('@').next().unwrap_or(&account.email);
-        let prefix_pattern = format!("%{}%", prefix);
+        let norm_email = account.email.trim().to_lowercase();
+        let acc_id = account.id.trim().to_string();
 
         let query_period = |ts: i64| -> (i64, f64) {
-            conn.query_row(
+            let res = conn.query_row(
                 "SELECT COALESCE(SUM(total_tokens), 0), 
-                        COALESCE(SUM(total_tokens * 0.000003), 0.0)
+                        COALESCE(SUM(cost_nanousd), 0)
                  FROM token_usage
-                 WHERE (account_email = ?1 OR account_email LIKE ?2) AND timestamp >= ?3",
-                params![&account.email, &prefix_pattern, ts],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .unwrap_or((0, 0.0))
+                 WHERE (LOWER(account_email) = ?1 OR account_id = ?2) AND timestamp >= ?3",
+                params![&norm_email, &acc_id, ts],
+                |r| {
+                    let toks: i64 = r.get(0)?;
+                    let nano: i64 = r.get(1)?;
+                    let cost = if nano > 0 {
+                        crate::modules::nano_currency::NanoUsd(nano).to_usd_f64()
+                    } else {
+                        toks as f64 * 0.000003
+                    };
+                    Ok((toks, cost))
+                },
+            );
+            res.unwrap_or((0, 0.0))
         };
 
-        let (mut tokens_5h, mut cost_usd_5h) = query_period(ts_5h);
-        let (mut tokens_7d, mut cost_usd_7d) = query_period(ts_7d);
-        let (mut tokens_30d, mut cost_usd_30d) = query_period(ts_30d);
-
-        // Fallback for single account setup: if unmatched, aggregate all tokens in time window
-        if tokens_30d == 0 && is_single {
-            let total_query = |ts: i64| -> (i64, f64) {
-                conn.query_row(
-                    "SELECT COALESCE(SUM(total_tokens), 0), 
-                            COALESCE(SUM(total_tokens * 0.000003), 0.0)
-                     FROM token_usage
-                     WHERE timestamp >= ?1",
-                    params![ts],
-                    |r| Ok((r.get(0)?, r.get(1)?)),
-                )
-                .unwrap_or((0, 0.0))
-            };
-            let (t5, c5) = total_query(ts_5h);
-            let (t7, c7) = total_query(ts_7d);
-            let (t30, c30) = total_query(ts_30d);
-            tokens_5h = t5;
-            cost_usd_5h = c5;
-            tokens_7d = t7;
-            cost_usd_7d = c7;
-            tokens_30d = t30;
-            cost_usd_30d = c30;
-        }
+        let (tokens_5h, cost_usd_5h) = query_period(ts_5h);
+        let (tokens_7d, cost_usd_7d) = query_period(ts_7d);
+        let (tokens_30d, cost_usd_30d) = query_period(ts_30d);
 
         account.consumption = Some(crate::models::account::AccountConsumption {
             tokens_5h,
@@ -314,7 +463,7 @@ fn populate_weekly_usage_with_conn(
     let mut stmt = conn
         .prepare(
             "SELECT COALESCE(SUM(input_tokens + output_tokens), 0) FROM token_usage
-         WHERE account_email = ?1 AND timestamp >= ?2 AND timestamp < ?3 AND timestamp <= ?4
+         WHERE (account_email = ?1 OR account_id = ?6) AND timestamp >= ?2 AND timestamp < ?3 AND timestamp <= ?4
          AND ((?5 = 0 AND model LIKE 'gemini%')
            OR (?5 = 1 AND (model LIKE 'claude%' OR model LIKE 'gpt%')))",
         )
@@ -342,7 +491,7 @@ fn populate_weekly_usage_with_conn(
                 }
                 bucket.cycle_tokens = Some(
                     stmt.query_row(
-                        params![account.email, start, end, now, third_party],
+                        params![account.email, start, end, now, third_party, account.id],
                         |row| row.get(0),
                     )
                     .map_err(|e| e.to_string())?,
@@ -547,31 +696,32 @@ pub fn get_weekly_stats(weeks: i64) -> Result<Vec<TokenStatsAggregated>, String>
 /// Get per-account statistics for a time range
 pub fn get_account_stats(hours: i64) -> Result<Vec<AccountTokenStats>, String> {
     let conn = connect_db()?;
-    let cutoff_bucket = if hours <= 0 {
-        String::new()
+    let cutoff_ts = if hours <= 0 {
+        0
     } else {
-        let cutoff = chrono::Local::now() - chrono::Duration::hours(hours);
-        cutoff.format("%Y-%m-%d %H:00").to_string()
+        chrono::Local::now().timestamp() - (hours * 3600)
     };
 
     let mut stmt = conn
         .prepare(
             "SELECT account_email,
-                SUM(total_input_tokens) as input, 
-                SUM(total_output_tokens) as output,
-                SUM(total_cached_tokens) as cached,
-                SUM(total_reasoning_tokens) as reasoning,
+                SUM(input_tokens) as input, 
+                SUM(output_tokens) as output,
+                SUM(cached_tokens) as cached,
+                SUM(reasoning_tokens) as reasoning,
                 SUM(total_tokens) as total,
-                SUM(request_count) as count
-         FROM token_stats_hourly 
-         WHERE hour_bucket >= ?1
+                COUNT(*) as count,
+                COALESCE(SUM(cost_nanousd), 0) as cost_nano
+         FROM token_usage 
+         WHERE timestamp >= ?1
          GROUP BY account_email
          ORDER BY total DESC",
         )
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
-        .query_map([cutoff_bucket], |row| {
+        .query_map([cutoff_ts], |row| {
+            let cost_nano: i64 = row.get(7)?;
             Ok(AccountTokenStats {
                 account_email: row.get(0)?,
                 total_input_tokens: row.get(1)?,
@@ -580,6 +730,7 @@ pub fn get_account_stats(hours: i64) -> Result<Vec<AccountTokenStats>, String> {
                 total_reasoning_tokens: row.get(4)?,
                 total_tokens: row.get(5)?,
                 request_count: row.get(6)?,
+                cost_usd: crate::modules::nano_currency::NanoUsd(cost_nano).to_usd_f64(),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -640,6 +791,19 @@ pub fn get_summary_stats(hours: i64) -> Result<TokenStatsSummary, String> {
         )
         .map_err(|e| e.to_string())?;
 
+    let cutoff_ts = if hours <= 0 {
+        0
+    } else {
+        chrono::Local::now().timestamp() - (hours * 3600)
+    };
+    let total_cost_nano: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(cost_nanousd), 0) FROM token_usage WHERE timestamp >= ?1",
+            [cutoff_ts],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
     Ok(TokenStatsSummary {
         total_input_tokens: total_input,
         total_output_tokens: total_output,
@@ -648,6 +812,7 @@ pub fn get_summary_stats(hours: i64) -> Result<TokenStatsSummary, String> {
         total_tokens: total,
         total_requests: requests,
         unique_accounts,
+        total_cost_usd: crate::modules::nano_currency::NanoUsd(total_cost_nano).to_usd_f64(),
     })
 }
 
@@ -667,7 +832,8 @@ pub fn get_model_stats(hours: i64) -> Result<Vec<ModelTokenStats>, String> {
                 SUM(cached_tokens) as cached,
                 SUM(reasoning_tokens) as reasoning,
                 SUM(total_tokens) as total,
-                COUNT(*) as count
+                COUNT(*) as count,
+                COALESCE(SUM(cost_nanousd), 0) as cost_nano
          FROM token_usage
          WHERE timestamp >= ?1
          GROUP BY model
@@ -677,6 +843,7 @@ pub fn get_model_stats(hours: i64) -> Result<Vec<ModelTokenStats>, String> {
 
     let rows = stmt
         .query_map([cutoff], |row| {
+            let cost_nano: i64 = row.get(7)?;
             Ok(ModelTokenStats {
                 model: row.get(0)?,
                 total_input_tokens: row.get(1)?,
@@ -685,6 +852,7 @@ pub fn get_model_stats(hours: i64) -> Result<Vec<ModelTokenStats>, String> {
                 total_reasoning_tokens: row.get(4)?,
                 total_tokens: row.get(5)?,
                 request_count: row.get(6)?,
+                cost_usd: crate::modules::nano_currency::NanoUsd(cost_nano).to_usd_f64(),
             })
         })
         .map_err(|e| e.to_string())?;

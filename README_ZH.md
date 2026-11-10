@@ -1,5 +1,5 @@
 # Antigravity Tools 🚀
-> 专业级 AI 账号管理与协议代理系统 (v5.3.1)
+> 专业级 AI 账号管理与协议代理系统 (v5.4.0)
 
 <div align="center">
   <img src="public/icon.png" width="100" height="100" alt="Antigravity Tools Logo">
@@ -11,7 +11,7 @@
       <img src="https://img.shields.io/github/v/release/huangyuehui1998-dev/Antigravity-Manager?color=blue&style=flat-square" alt="GitHub release">
     </a>
     <a href="https://github.com/huangyuehui1998-dev/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-5.3.1-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-5.4.0-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -497,7 +497,8 @@ response = client.chat.completions.create(
 
 ## 📝 更新日志
 
-> 最新版本 **v5.3.1**（2026-11-03）：全盘 UI 走查与无障碍深度加固：全面落地配额与监控看板（CyberCockpit、AppleBento、TopModels）百分比单 Text 节点渲染，彻底杜绝 Windows DirectWrite 与 UIA 换行错位；Kiro 本地 Credit 快照集成显式同步与重置倒计时（读自本地 `kiro.kiroAgent` usageState 快照，对齐 UsageBar/PaceBar 语义，非 Protobuf 会话引擎；无 Kiro 保持 missing_db 空态引导且杜绝伪造数据）；反代服务二元真值化状态（`admin_bound` 与 `forwarding`）精准区分端口监听与 AI 转发就绪；诊断副标题清退营销夸大文案；AppleBento 看板空态调度守卫；辅助控制区与更多菜单补齐系统设置入口；缓存命中率分母包含性修正与 [0, 100] 绝对钳位。
+> 最新版本 **v5.4.0**（2026-11-10）：工业级架构重塑与体验跃迁：彻底根除 429 假刷新与连锁自锁 10 分钟毒药，修复 401/403 自动换票重试；账号主表格 5 核心列极简降噪，表头与数据行 1:1 严格对齐，全选 Checkbox 状态机修复；全新引入滑出式 `AccountDetailDrawer` 母子抽屉，支持 Esc 快捷关闭；双配额胶囊主力模型智能萃取与优雅占位；收敛单一权威不可篡改账本 `request_usage_log`，纳美元四维精准计费，Prompt 扣除 Cache 杜绝重复扣费，纠正总 Token 膨胀；QoS 60s 倒计时实时走字并在刷新成功后自动解冻。
+> 上一版本 **v5.3.1**（2026-11-03）：全盘 UI 走查与无障碍深度加固：全面落地配额与监控看板（CyberCockpit、AppleBento、TopModels）百分比单 Text 节点渲染，彻底杜绝 Windows DirectWrite 与 UIA 换行错位；Kiro 本地 Credit 快照集成显式同步与重置倒计时（读自本地 `kiro.kiroAgent` usageState 快照，对齐 UsageBar/PaceBar 语义，非 Protobuf 会话引擎；无 Kiro 保持 missing_db 空态引导且杜绝伪造数据）；反代服务二元真值化状态（`admin_bound` 与 `forwarding`）精准区分端口监听与 AI 转发就绪；诊断副标题清退营销夸大文案；AppleBento 看板空态调度守卫；辅助控制区与更多菜单补齐系统设置入口；缓存命中率分母包含性修正与 [0, 100] 绝对钳位。
 > 上一版本 **v5.3.0**（2026-11-03）：数据中枢 Analytics Hub 全真值重构：彻底清退所有前端硬编码虚假指标（$522.73、7.18 亿 Tokens、135 TPS 等占位假值）；统一跨平台只读 SQLite URI 转换规范，彻底根除 Windows 盘符与 UNC 异常；修复 Kiro 扫描器同步检查点提前提交缺陷；打通 Web 模式完整 HTTP 路由与透明 COMMAND_MAPPING；支持 Keep-Alive 多标签离屏节能与用量画像静默同步。
 > 上一版本 **v5.2.0**（2026-11-02）：发布全域跨盘五级自适应 Antigravity 数据源探测引擎（全面覆盖 C:、D:、E: 全驱动器、WSL2、便携绿色目录、注册表与环境契约）；新增上游模型降智诊断与拟真 Reducer 金丝雀探针，精准核验物理模型真实度、实时流速 (TPS)、首字延迟 (TTFT) 与思考链占比并与官方技术手册基准对齐；集成纳美元 ($10^{-9}$ USD) 高精整数计费引擎，彻底根除 IEEE 754 浮点累加漂移；推出视网膜级 High-DPI 仪表盘与离屏节能调度。
 

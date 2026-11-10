@@ -469,18 +469,59 @@ impl ProxyMonitor {
             .model
             .clone()
             .unwrap_or_else(|| "gemini-3.8-flash".to_string());
-        let input = log.input_tokens.unwrap_or(1);
-        let output = log.output_tokens.unwrap_or(1);
+        let input = match log.input_tokens {
+            Some(tok) => tok,
+            None => {
+                let bytes = log.request_body.as_ref().map(|b| b.len()).unwrap_or(0);
+                if bytes > 0 {
+                    (bytes / 4).max(1) as u32
+                } else {
+                    0
+                }
+            }
+        };
+        let output = match log.output_tokens {
+            Some(tok) => tok,
+            None => {
+                let bytes = log.response_body.as_ref().map(|b| b.len()).unwrap_or(0);
+                if bytes > 0 {
+                    (bytes / 4).max(1) as u32
+                } else {
+                    0
+                }
+            }
+        };
         let cached = log.cached_tokens.unwrap_or(0);
         let reasoning = log.reasoning_tokens.unwrap_or(0);
 
-        tokio::task::spawn_blocking(move || {
-            if let Err(e) = crate::modules::token_stats::record_usage(
-                &account, &model, input, output, cached, reasoning,
-            ) {
-                tracing::debug!("Failed to record token stats: {}", e);
-            }
-        });
+        if input > 0 || output > 0 || cached > 0 || reasoning > 0 {
+            let req_id = log.id.clone();
+            let ts = log.timestamp / 1000;
+            let status = log.status;
+            let latency = log.duration as u32;
+            let protocol = log.protocol.clone();
+            let user_tok = log.username.clone();
+
+            tokio::task::spawn_blocking(move || {
+                if let Err(e) = crate::modules::token_stats::record_detailed_usage(
+                    &req_id,
+                    ts,
+                    &account,
+                    None,
+                    user_tok.as_deref(),
+                    protocol.as_deref(),
+                    &model,
+                    input,
+                    output,
+                    cached,
+                    reasoning,
+                    latency,
+                    status,
+                ) {
+                    tracing::debug!("Failed to record unified usage ledger: {}", e);
+                }
+            });
+        }
 
         if !self.is_enabled() {
             return;
